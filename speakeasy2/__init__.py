@@ -102,4 +102,4 @@ def cluster(
         target_partitions,
         verbose,
     )
-    return _ig.VertexClustering(g, membership=memb)
+    return _ig.VertexClustering(g, membership=memb[0])
