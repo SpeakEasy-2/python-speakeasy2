@@ -1,0 +1,6 @@
+[submodule "vendor/speakeasy2"]
+	path = vendor/speakeasy2
+	url = https://github.com/SpeakEasy-2/libspeakeasy2
+[submodule "vendor/python-igraph"]
+	path = vendor/python-igraph
+	url = https://github.com/igraph/python-igraph
