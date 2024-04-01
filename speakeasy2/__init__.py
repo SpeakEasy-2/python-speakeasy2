@@ -41,6 +41,8 @@ def cluster(
     seed: int = 0,
     target_clusters: int = 0,
     target_partitions: int = 5,
+    subcluster: int = 1,
+    min_cluster: int = 5,
     verbose: bool = False,
 ) -> _ig.VertexClustering:
     """Cluster a graph using the SpeakEasy2 community detection algorithm.
@@ -74,13 +76,23 @@ def cluster(
         The final number of labels may be different.
     target_partitions : int
         Number of partitions to find per independent run (default 5).
+    subcluster : int
+        How many levels of community detection to run (default 1). If greater
+        than 1, community detection will be run each of the resulting
+        communities to perform subclustering. This is repeated subcluster
+        times.
+    min_cluster : int
+        Smallest community to perform subclustering on (default 5). Ignored if
+        subcluster is 1 (i.e. no subclustering).
     verbose : bool
         Whether to provide additional information about the clustering or not.
 
     Returns
     -------
-    memb : igraph.VertexClustering
-        The detected community structure.
+    memb : igraph.VertexClustering or list(igraph.VertexClustering)
+        The detected community structure. If subclustering, a list of
+        igraph.VertexClustering will be returned, one for each level. The top
+        level clustering is in index 0.
 
     """
     if isinstance(weights, str):
@@ -94,12 +106,18 @@ def cluster(
     memb = _cluster(
         g,
         weights,
-        discard_transient,
-        independent_runs,
-        max_threads,
-        seed,
-        target_clusters,
-        target_partitions,
-        verbose,
+        discard_transient=discard_transient,
+        independent_runs=independent_runs,
+        max_threads=max_threads,
+        seed=seed,
+        target_clusters=target_clusters,
+        target_partitions=target_partitions,
+        subcluster=subcluster,
+        min_cluster=min_cluster,
+        verbose=verbose,
     )
+
+    if subcluster > 1:
+        return [_ig.VertexClustering(g, membership=m) for m in memb]
+
     return _ig.VertexClustering(g, membership=memb[0])

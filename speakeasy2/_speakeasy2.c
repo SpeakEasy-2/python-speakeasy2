@@ -47,6 +47,8 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
     "seed",
     "target_clusters",
     "target_partitions",
+    "subcluster",
+    "min_cluster",
     "verbose",
     NULL
   };
@@ -56,11 +58,13 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
   int seed = 0;
   int target_clusters = 0;
   int target_partitions = 0;
+  int subcluster = 0;
+  int min_cluster = 0;
   int verbose = false;
   igraph_matrix_int_t memb;
   PyObject* py_memb_obj;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Obbbbbbp", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Obbbbbbbbp", kwlist,
                                    &py_graph_obj,
                                    &py_weights_obj,
                                    &discard_transient,
@@ -69,6 +73,8 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
                                    &seed,
                                    &target_clusters,
                                    &target_partitions,
+                                   &subcluster,
+                                   &min_cluster,
                                    &verbose)) {
     return NULL;
   }
@@ -80,6 +86,8 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
     .random_seed = seed,
     .target_clusters = target_clusters,
     .target_partitions = target_partitions,
+    .subcluster = subcluster,
+    .minclust = min_cluster,
     .verbose = verbose,
   };
 
