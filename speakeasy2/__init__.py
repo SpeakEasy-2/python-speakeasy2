@@ -20,7 +20,7 @@ Example:
 
 """
 
-__all__ = ["cluster", "__version__"]
+__all__ = ["cluster", "order_nodes", "__version__"]
 
 from typing import Optional
 
@@ -28,6 +28,7 @@ import igraph as _ig
 
 from speakeasy2._speakeasy2 import SE2_VERSION
 from speakeasy2._speakeasy2 import cluster as _cluster
+from speakeasy2._speakeasy2 import order_nodes as _order_nodes
 
 __version__ = SE2_VERSION
 
@@ -44,7 +45,7 @@ def cluster(
     subcluster: int = 1,
     min_cluster: int = 5,
     verbose: bool = False,
-) -> _ig.VertexClustering:
+) -> _ig.VertexClustering | list[_ig.VertexClustering]:
     """Cluster a graph using the SpeakEasy2 community detection algorithm.
 
     For all integer parameters below, values should be positive, setting a
@@ -121,3 +122,60 @@ def cluster(
         return [_ig.VertexClustering(g, membership=m) for m in memb]
 
     return _ig.VertexClustering(g, membership=memb[0])
+
+
+def order_nodes(
+    g: _ig.Graph,
+    membership: _ig.VertexClustering | list[_ig.VertexClustering],
+    weights: Optional[str | list[int]] = "weight",
+) -> list[int] | list[list[int]]:
+    """Order nodes by communities to emphasize network structure.
+
+    This ordering can be used with heatmaps to ensure nodes within a community
+    a displayed together.
+
+    Uses the partition to group nodes so that members of the same community are
+    together. Communities are ordered by size such that the first nodes are the
+    nodes in the largest community and the last nodes are those in the smallest
+    community. Within communities, nodes are ordered by degree.
+
+    If membership is a list VertexClustering objects (the case when obtained by
+    running SpeakEasy2 with subclustering), ordering is done recursively. In
+    this case, one ordering is returned for each level of subclustering. The
+    nodes in the largest community of level 1 will still be the first nodes in
+    all lower level ordering, but the ordering within the first top level
+    community will be changed to emphasize the lower level communities.
+
+    Parameters
+    ----------
+    g : igraph.Graph
+        The graph to cluster.
+    membership : igraph.VertexClustering or list[igraph.VertexClustering]
+        A list of community labels obtained from a community detection
+        algorithm.
+    weights : str, list[float], None
+        Optional name of weight attribute or list of weights. If a string, use
+        the graph edge attribute with the given name (default is "weight"). If
+        a list, must have length equal to the number of edges in the graph.
+
+    Returns
+    -------
+    ordering : list[int] or list[list[int]]
+        A list of indices that can be applied to reorder nodes such that nodes
+        in the same community are grouped together. If membership is a list
+        VertexClusterings, the returned value will be a list of ordering with
+        length equal to the length of membership.
+    """
+    if isinstance(weights, str):
+        if weights in g.edge_attributes():
+            weights = g.es[weights]
+        elif weights == "weight":
+            weights = None
+        else:
+            raise KeyError(f"Graph does not have edge attribute {weights}")
+
+    if isinstance(membership, list):
+        membership = [m.membership for m in membership]
+        return _order_nodes(g, membership, weights=weights)
+
+    return _order_nodes(g, membership.membership, weights=weights)[0]

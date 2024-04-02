@@ -17,6 +17,30 @@ static void py_sequence_to_igraph_vector_i(PyObject* seq,
   }
 }
 
+static void py_list_to_igraph_matrix_int_i(PyObject* list,
+    igraph_matrix_int_t* mat)
+{
+  size_t n_row = PyList_Size(list);
+  PyObject* first_el = PyList_GetItem(list, 0);
+  size_t n_col = 0;
+  bool nested = true;
+  if (PyList_Check(first_el)) {
+    n_col = PyList_Size(first_el);
+  } else {
+    n_col = n_row;
+    n_row = 1;
+    nested = false;
+  }
+
+  igraph_matrix_int_init(mat, n_row, n_col);
+  for (size_t i = 0; i < n_row; i++) {
+    PyObject* inner = nested ? PyList_GetItem(list, i) : list;
+    for (size_t j = 0; j < n_col; j++) {
+      MATRIX(*mat, i, j) = PyFloat_AsDouble(PyList_GetItem(inner, j));
+    }
+  }
+}
+
 static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
 {
   PyObject* res = PyList_New(igraph_matrix_int_nrow(mat));
@@ -118,8 +142,56 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
   return py_memb_obj;
 }
 
+static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
+                             PyObject* kwds)
+{
+  PyObject* py_graph_obj = NULL;
+  PyObject* py_weights_obj = NULL;
+  PyObject* py_memb_obj = NULL;
+  char* kwlist[] = {
+    "graph",
+    "membership",
+    "weights",
+    NULL
+  };
+  igraph_t* graph;
+  igraph_vector_t weights;
+  igraph_matrix_int_t memb, order;
+  PyObject* py_order_obj;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|O", kwlist,
+                                   &py_graph_obj,
+                                   &py_memb_obj,
+                                   &py_weights_obj)) {
+    return NULL;
+  }
+
+  graph = PyIGraph_ToCGraph(py_graph_obj);
+  py_list_to_igraph_matrix_int_i(py_memb_obj, &memb);
+
+  if (py_weights_obj && PySequence_Check(py_weights_obj)) {
+    py_sequence_to_igraph_vector_i(py_weights_obj, &weights);
+    if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
+      PyErr_SetString(PyExc_ValueError,
+                      "Number of weights does not match number of edges in graph.");
+      return NULL;
+    }
+    se2_order_nodes(graph, &weights, &memb, &order);
+    igraph_vector_destroy(&weights);
+  } else {
+    se2_order_nodes(graph, NULL, &memb, &order);
+  }
+  py_order_obj = igraph_matrix_int_to_py_list_i(&order);
+
+  igraph_matrix_int_destroy(&memb);
+  igraph_matrix_int_destroy(&order);
+
+  return py_order_obj;
+}
+
 static PyMethodDef SpeakEasy2Methods[] = {
   {"cluster", (PyCFunction)(void(*)(void))cluster, METH_VARARGS | METH_KEYWORDS, NULL},
+  {"order_nodes", (PyCFunction)(void(*)(void))order_nodes, METH_VARARGS | METH_KEYWORDS, NULL},
   {NULL, NULL, 0, NULL}
 };
 
