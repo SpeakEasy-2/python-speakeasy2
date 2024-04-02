@@ -1,0 +1,43 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  checks: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yaml
+
+  package_python:
+    needs:
+      - build
+    uses: ./.github/workflows/python.yaml
+
+  release:
+    name: Release new packages
+    runs-on: ubuntu-latest
+    environment: release
+    needs:
+      - package_python
+
+    steps:
+      - name: Collect packages
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy final packages to release
+        run: |
+          mkdir release
+          mv artifacts/speakeasy2-python-*-${{ github.sha }}/* release
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
