@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "SpeakEasy2 community detection algorithm"
 authors = ["David R Connell <davidconnell12@gmail.com>"]
 license = "GPLv3+"
-repository = "https://github.com/SpeakEasy2/python-speakeasy2"
+repository = "https://github.com/SpeakEasy-2/python-speakeasy2"
 keywords = ["network", "community detection", "cluster", "graph"]
 readme = "README.md"
 packages = [{ include = "speakeasy2" }]

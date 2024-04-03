@@ -1,6 +1,10 @@
 # Python SpeakEasy2 package
 
-Provides the SpeakEasy2 community detection algorithm to cluster graph's stored as igraph's data type.
+![PyPI - Version](https://img.shields.io/pypi/v/speakeasy2)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/speakeasy2)
+
+
+Provides the SpeakEasy2 community detection algorithm to cluster graph's stored as igraph's data type. The algorithm is described in the [Genome Biology article](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-023-03062-0).
 
 Example:
 
