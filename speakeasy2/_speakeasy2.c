@@ -2,10 +2,13 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <Python.h>
+
+#include <igraphmodule_api.h>
+
 #include <speak_easy_2.h>
 #include <se2_version.h>
-#include <igraph.h>
-#include <igraphmodule_api.h>
+
+#include <igraph_interface.h>
 
 static void py_sequence_to_igraph_vector_i(PyObject* seq,
     igraph_vector_t* vec)

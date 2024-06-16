@@ -29,10 +29,6 @@
           cmake
           ninja
           gdb
-          # igraph dependencies
-          bison
-          flex
-          libxml2
           # Poetry dependencies
           poetry
         ]);
