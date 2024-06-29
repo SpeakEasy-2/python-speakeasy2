@@ -110,15 +110,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-    # Use system Clang (supports openmp) instead of XCode Clang.
-    # See https://gist.github.com/svenevs/f00ed3898d2af6248921b63254aa8cc1
-    env:
-      CC: /usr/bin/clang
-      CXX: /usr/bin/clang++
-      CPPFLAGS: "-Xpreprocessor -fopenmp"
-      CFLAGS: "-I/usr/local/opt/libomp/include"
-      CXXFLAGS: "-I/usr/local/opt/libomp/include"
-      LDFLAGS: "-Wl,-rpath,/usr/local/opt/libomp/lib -L/usr/local/opt/libomp/lib -lomp"
 
     steps:
       - uses: actions/checkout@v4
@@ -133,7 +124,7 @@ jobs:
           git submodule update --recursive
 
       - name: Install dependencies
-        run: brew install ninja autoconf automake libtool libomp
+        run: brew install ninja
 
       - name: Set up python
         uses: actions/setup-python@v5
