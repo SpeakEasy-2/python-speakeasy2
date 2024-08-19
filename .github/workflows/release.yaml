@@ -12,8 +12,7 @@ jobs:
     uses: ./.github/workflows/build.yaml
 
   package_python:
-    needs:
-      - build
+    needs: build
     uses: ./.github/workflows/python.yaml
 
   release:
@@ -21,13 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     environment: release
+    env:
+      TAG_NAME: ${{ github.ref_name }}
     permissions:
       id-token: write
       checks: write
       contents: write
       pull-requests: write
-    needs:
-      - package_python
+    needs: package_python
 
     steps:
       - name: Collect packages
@@ -41,9 +41,21 @@ jobs:
           mv artifacts/speakeasy2-python-*-${{ github.sha }}/*.whl dist
           mv artifacts/speakeasy2-python-Linux-3.12-${{ github.sha }}/*.tar.gz dist
 
+      - name: Create release name
+        run: echo RELEASE_NAME=${TAG_NAME/v/speakeasy2 } >> $GITHUB_ENV
+
+      - name: Create release notes
+        run: |
+          range=$(grep --max-count=2 --line-number "## \[" < CHANGELOG.md |\
+            cut -f 1 -d: | tr '\n' ',' | sed -n 's/,$/p\n/p')
+          sed -n $range < CHANGELOG.md | head -n-2 | tail -n+3 > release_notes.md
+          sed -i 's/###/##/g' release_notes.md
+
       - name: Upload assets to release
         uses: softprops/action-gh-release@v1
         with:
+          name: ${{ env.RELEASE_NAME }}
+          body_path: release_notes.md
           files: dist/*
 
       - name: Upload release to PyPI
