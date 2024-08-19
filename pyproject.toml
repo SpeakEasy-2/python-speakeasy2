@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "speakeasy2"
-version = "0.1.0"
+version = "0.1.1"
 description = "SpeakEasy2 community detection algorithm"
 authors = ["David R Connell <davidconnell12@gmail.com>"]
 license = "GPLv3+"
