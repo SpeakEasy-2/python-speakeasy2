@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Keyboard interruption handling.
+
 ### Changed
 
 - Update libspeakeasy2 which moves from OpenMP -> pthreads and reduces the dependencies required to compile the package.
-- Updaet libspeakeasy2 to 0.1.7 for improved performance and better error handling.
+- Update libspeakeasy2 to 0.1.7 for improved performance and better error handling.
 
 ## [v0.1.0] 2024-04-02
 

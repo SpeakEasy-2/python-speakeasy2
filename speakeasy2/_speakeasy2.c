@@ -10,17 +10,86 @@
 
 #include <igraph.h>
 
-static void py_sequence_to_igraph_vector_i(PyObject* seq,
-    igraph_vector_t* vec)
+#define PYIGRAPH_CHECK(expr)                                  \
+    do {                                                      \
+        igraph_error_t igraph_i_ret = (expr);                 \
+        if (IGRAPH_UNLIKELY(igraph_i_ret != IGRAPH_SUCCESS)) {\
+            IGRAPH_ERROR_NO_RETURN("", igraph_i_ret);         \
+            return NULL;                                      \
+        }                                                     \
+    } while (0)
+
+void se2_pywarning(const char* reason, const char* file, int line)
 {
-  size_t n_edges = PySequence_Size(seq);
-  igraph_vector_init(vec, n_edges);
-  for (size_t i = 0; i < n_edges; i++) {
-    VECTOR(*vec)[i] = PyFloat_AsDouble(PySequence_GetItem(seq, i));
+  char msg[512];
+  snprintf(msg, sizeof(msg), "%s\n\n> In %s (line %d)\n", reason, file, line);
+  PyErr_WarnEx(PyExc_RuntimeWarning, msg, 1);
+}
+
+void se2_pyerror(const char* reason, const char* file, int line,
+                 igraph_error_t igraph_errno)
+{
+  const char* errmsg = igraph_strerror(igraph_errno);
+  PyObject* type = PyExc_RuntimeError;
+  char msg[512];
+  snprintf(msg, sizeof(msg), "%s: %s\n\n%s -- %d\n", errmsg, reason,
+           file, line);
+
+  if (igraph_errno == IGRAPH_ENOMEM) {
+    type = PyExc_MemoryError;
+  }
+
+  if (igraph_errno == IGRAPH_INTERRUPTED) {
+    type = PyExc_KeyboardInterrupt;
+  }
+
+  IGRAPH_FINALLY_FREE();
+
+  if (!PyErr_Occurred()) {
+    PyErr_SetString(type, msg);
   }
 }
 
-static void py_list_to_igraph_matrix_int_i(PyObject* list,
+igraph_bool_t se2_pycheck_user_interrupt(void)
+{
+  return PyErr_CheckSignals() < 0;
+}
+
+int se2_py_print(char const* buff, ...)
+{
+  PyObject* msg = PyUnicode_FromString(buff);
+  PyObject* py_stdout = PySys_GetObject("stdout");
+
+  return PyFile_WriteObject(msg, py_stdout, Py_PRINT_RAW);
+
+  Py_DECREF(msg);
+  Py_DECREF(py_stdout);
+}
+
+static void se2_init(void)
+{
+  se2_set_check_user_interrupt_func(se2_pycheck_user_interrupt);
+  se2_set_int_printf_func(se2_py_print);
+
+  igraph_set_error_handler(se2_pyerror);
+  igraph_set_warning_handler(se2_pywarning);
+}
+
+static igraph_error_t py_sequence_to_igraph_vector_i(PyObject* seq,
+    igraph_vector_t* vec)
+{
+  size_t n_edges = PySequence_Size(seq);
+  IGRAPH_CHECK(igraph_vector_init(vec, n_edges));
+  IGRAPH_FINALLY(igraph_vector_destroy, vec);
+  for (size_t i = 0; i < n_edges; i++) {
+    VECTOR(*vec)[i] = PyFloat_AsDouble(PySequence_GetItem(seq, i));
+  }
+  IGRAPH_FINALLY_CLEAN(1);
+
+  return IGRAPH_SUCCESS;
+}
+
+static igraph_error_t py_list_to_igraph_matrix_int_i(PyObject* list,
     igraph_matrix_int_t* mat)
 {
   size_t n_row = PyList_Size(list);
@@ -35,13 +104,17 @@ static void py_list_to_igraph_matrix_int_i(PyObject* list,
     nested = false;
   }
 
-  igraph_matrix_int_init(mat, n_row, n_col);
+  IGRAPH_CHECK(igraph_matrix_int_init(mat, n_row, n_col));
+  IGRAPH_FINALLY(igraph_matrix_int_destroy, mat);
   for (size_t i = 0; i < n_row; i++) {
     PyObject* inner = nested ? PyList_GetItem(list, i) : list;
     for (size_t j = 0; j < n_col; j++) {
       MATRIX(*mat, i, j) = PyFloat_AsDouble(PyList_GetItem(inner, j));
     }
   }
+  IGRAPH_FINALLY_CLEAN(1);
+
+  return IGRAPH_SUCCESS;
 }
 
 static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
@@ -61,6 +134,8 @@ static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
 static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
                          PyObject* kwds)
 {
+  se2_init();
+
   PyObject* py_graph_obj = NULL;
   PyObject* py_weights_obj = NULL;
   igraph_t* graph;
@@ -129,22 +204,31 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
 
   if (py_weights_obj && PySequence_Check(py_weights_obj)) {
     py_sequence_to_igraph_vector_i(py_weights_obj, &weights);
+    IGRAPH_FINALLY(igraph_vector_destroy, &weights);
     if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
+      IGRAPH_FINALLY_FREE();
       PyErr_SetString(PyExc_ValueError,
                       "Number of weights does not match number of edges in graph.");
       return NULL;
     }
 
-    se2_igraph_to_neighbor_list(graph, &weights, &neigh_list);
+    PYIGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, &weights, &neigh_list));
     igraph_vector_destroy(&weights);
+    IGRAPH_FINALLY_CLEAN(1);
   } else {
-    se2_igraph_to_neighbor_list(graph, NULL, &neigh_list);
+    PYIGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, NULL, &neigh_list));
   }
-  speak_easy_2(&neigh_list, &opts, &memb);
+  IGRAPH_FINALLY(se2_neighs_destroy, &neigh_list);
+
+  PYIGRAPH_CHECK(speak_easy_2(&neigh_list, &opts, &memb));
   se2_neighs_destroy(&neigh_list);
+  IGRAPH_FINALLY_CLEAN(1);
+
+  IGRAPH_FINALLY(igraph_matrix_int_destroy, &memb);
 
   py_memb_obj = igraph_matrix_int_to_py_list_i(&memb);
   igraph_matrix_int_destroy(&memb);
+  IGRAPH_FINALLY_CLEAN(1);
 
   return py_memb_obj;
 }
@@ -152,6 +236,8 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
 static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
                              PyObject* kwds)
 {
+  se2_init();
+
   PyObject* py_graph_obj = NULL;
   PyObject* py_weights_obj = NULL;
   PyObject* py_memb_obj = NULL;
@@ -175,26 +261,33 @@ static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
   }
 
   graph = PyIGraph_ToCGraph(py_graph_obj);
-  py_list_to_igraph_matrix_int_i(py_memb_obj, &memb);
+  PYIGRAPH_CHECK(py_list_to_igraph_matrix_int_i(py_memb_obj, &memb));
+  IGRAPH_FINALLY(igraph_matrix_int_destroy, &memb);
 
   if (py_weights_obj && PySequence_Check(py_weights_obj)) {
-    py_sequence_to_igraph_vector_i(py_weights_obj, &weights);
+    PYIGRAPH_CHECK(py_sequence_to_igraph_vector_i(py_weights_obj, &weights));
+    IGRAPH_FINALLY(igraph_vector_destroy, &weights);
     if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
+      IGRAPH_FINALLY_FREE();
       PyErr_SetString(PyExc_ValueError,
                       "Number of weights does not match number of edges in graph.");
       return NULL;
     }
-    se2_igraph_to_neighbor_list(graph, &weights, &neigh_list);
+    PYIGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, &weights, &neigh_list));
     igraph_vector_destroy(&weights);
+    IGRAPH_FINALLY_CLEAN(1);
   } else {
-    se2_igraph_to_neighbor_list(graph, NULL, &neigh_list);
+    PYIGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, NULL, &neigh_list));
   }
+  IGRAPH_FINALLY(se2_neighs_destroy, &neigh_list);
 
-  se2_order_nodes(&neigh_list, &memb, &order);
+  PYIGRAPH_CHECK(se2_order_nodes(&neigh_list, &memb, &order));
+  IGRAPH_FINALLY(igraph_matrix_int_destroy, &order);
   py_order_obj = igraph_matrix_int_to_py_list_i(&order);
 
   igraph_matrix_int_destroy(&memb);
   igraph_matrix_int_destroy(&order);
+  IGRAPH_FINALLY_CLEAN(2);
 
   return py_order_obj;
 }
