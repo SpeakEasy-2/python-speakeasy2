@@ -8,7 +8,7 @@
 #include <speak_easy_2.h>
 #include <se2_version.h>
 
-#include <igraph_interface.h>
+#include <igraph.h>
 
 static void py_sequence_to_igraph_vector_i(PyObject* seq,
     igraph_vector_t* vec)
@@ -64,6 +64,7 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
   PyObject* py_graph_obj = NULL;
   PyObject* py_weights_obj = NULL;
   igraph_t* graph;
+  se2_neighs neigh_list;
   igraph_vector_t weights;
   char* kwlist[] = {
     "graph",
@@ -133,11 +134,14 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
                       "Number of weights does not match number of edges in graph.");
       return NULL;
     }
-    speak_easy_2(graph, &weights, &opts, &memb);
+
+    se2_igraph_to_neighbor_list(graph, &weights, &neigh_list);
     igraph_vector_destroy(&weights);
   } else {
-    speak_easy_2(graph, NULL, &opts, &memb);
+    se2_igraph_to_neighbor_list(graph, NULL, &neigh_list);
   }
+  speak_easy_2(&neigh_list, &opts, &memb);
+  se2_neighs_destroy(&neigh_list);
 
   py_memb_obj = igraph_matrix_int_to_py_list_i(&memb);
   igraph_matrix_int_destroy(&memb);
@@ -159,6 +163,7 @@ static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
   };
   igraph_t* graph;
   igraph_vector_t weights;
+  se2_neighs neigh_list;
   igraph_matrix_int_t memb, order;
   PyObject* py_order_obj;
 
@@ -179,11 +184,13 @@ static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
                       "Number of weights does not match number of edges in graph.");
       return NULL;
     }
-    se2_order_nodes(graph, &weights, &memb, &order);
+    se2_igraph_to_neighbor_list(graph, &weights, &neigh_list);
     igraph_vector_destroy(&weights);
   } else {
-    se2_order_nodes(graph, NULL, &memb, &order);
+    se2_igraph_to_neighbor_list(graph, NULL, &neigh_list);
   }
+
+  se2_order_nodes(&neigh_list, &memb, &order);
   py_order_obj = igraph_matrix_int_to_py_list_i(&order);
 
   igraph_matrix_int_destroy(&memb);
