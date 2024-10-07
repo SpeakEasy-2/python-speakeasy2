@@ -31,8 +31,8 @@ void se2_pyerror(const char* reason, const char* file, int line,
 {
   const char* errmsg = igraph_strerror(igraph_errno);
   PyObject* type = PyExc_RuntimeError;
-  char msg[512];
-  snprintf(msg, sizeof(msg), "%s: %s\n\n%s -- %d\n", errmsg, reason,
+  char msg[1024];
+  snprintf(msg, sizeof(msg) - 1, "%s: %s\n\n%s -- %d\n", errmsg, reason,
            file, line);
 
   if (igraph_errno == IGRAPH_ENOMEM) {
@@ -50,14 +50,9 @@ void se2_pyerror(const char* reason, const char* file, int line,
   }
 }
 
-igraph_bool_t se2_pycheck_user_interrupt(void)
+igraph_error_t se2_pystatus(char const* message, void* data)
 {
-  return PyErr_CheckSignals() < 0;
-}
-
-int se2_py_print(char const* buff, ...)
-{
-  PyObject* msg = PyUnicode_FromString(buff);
+  PyObject* msg = PyUnicode_FromString(message);
   PyObject* py_stdout = PySys_GetObject("stdout");
 
   return PyFile_WriteObject(msg, py_stdout, Py_PRINT_RAW);
@@ -66,13 +61,17 @@ int se2_py_print(char const* buff, ...)
   Py_DECREF(py_stdout);
 }
 
+igraph_error_t se2_pyinterrupt(void* data)
+{
+  return PyErr_CheckSignals() < 0 ? IGRAPH_INTERRUPTED : IGRAPH_SUCCESS;
+}
+
 static void se2_init(void)
 {
-  se2_set_check_user_interrupt_func(se2_pycheck_user_interrupt);
-  se2_set_int_printf_func(se2_py_print);
-
   igraph_set_error_handler(se2_pyerror);
   igraph_set_warning_handler(se2_pywarning);
+  igraph_set_status_handler(se2_pystatus);
+  igraph_set_interruption_handler(se2_pyinterrupt);
 }
 
 static igraph_error_t py_sequence_to_igraph_vector_i(PyObject* seq,
