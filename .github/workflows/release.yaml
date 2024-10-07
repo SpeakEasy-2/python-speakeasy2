@@ -3,7 +3,7 @@ name: Release packages
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
     branches:
       - devel
 
@@ -30,6 +30,11 @@ jobs:
     needs: package_python
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
       - name: Collect packages
         uses: actions/download-artifact@v4
         with:
