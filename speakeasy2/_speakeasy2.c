@@ -2,38 +2,35 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <Python.h>
-
-#include <igraphmodule_api.h>
-
-#include <speak_easy_2.h>
-#include <se2_version.h>
-
 #include <igraph.h>
+#include <igraphmodule_api.h>
+#include <se2_version.h>
+#include <speak_easy_2.h>
 
-#define PYIGRAPH_CHECK(expr)                                  \
-    do {                                                      \
-        igraph_error_t igraph_i_ret = (expr);                 \
-        if (IGRAPH_UNLIKELY(igraph_i_ret != IGRAPH_SUCCESS)) {\
-            IGRAPH_ERROR_NO_RETURN("", igraph_i_ret);         \
-            return NULL;                                      \
-        }                                                     \
-    } while (0)
+#define PYIGRAPH_CHECK(expr)                                                  \
+  do {                                                                        \
+    igraph_error_t igraph_i_ret = (expr);                                     \
+    if (IGRAPH_UNLIKELY(igraph_i_ret != IGRAPH_SUCCESS)) {                    \
+      IGRAPH_ERROR_NO_RETURN("", igraph_i_ret);                               \
+      return NULL;                                                            \
+    }                                                                         \
+  } while (0)
 
-void se2_pywarning(const char* reason, const char* file, int line)
+void se2_pywarning(char const* reason, char const* file, int line)
 {
   char msg[512];
   snprintf(msg, sizeof(msg), "%s\n\n> In %s (line %d)\n", reason, file, line);
   PyErr_WarnEx(PyExc_RuntimeWarning, msg, 1);
 }
 
-void se2_pyerror(const char* reason, const char* file, int line,
-                 igraph_error_t igraph_errno)
+void se2_pyerror(
+  char const* reason, char const* file, int line, igraph_error_t igraph_errno)
 {
-  const char* errmsg = igraph_strerror(igraph_errno);
+  char const* errmsg = igraph_strerror(igraph_errno);
   PyObject* type = PyExc_RuntimeError;
   char msg[1024];
-  snprintf(msg, sizeof(msg) - 1, "%s: %s\n\n%s -- %d\n", errmsg, reason,
-           file, line);
+  snprintf(
+    msg, sizeof(msg) - 1, "%s: %s\n\n%s -- %d\n", errmsg, reason, file, line);
 
   if (igraph_errno == IGRAPH_ENOMEM) {
     type = PyExc_MemoryError;
@@ -74,8 +71,8 @@ static void se2_init(void)
   igraph_set_interruption_handler(se2_pyinterrupt);
 }
 
-static igraph_error_t py_sequence_to_igraph_vector_i(PyObject* seq,
-    igraph_vector_t* vec)
+static igraph_error_t py_sequence_to_igraph_vector_i(
+  PyObject* seq, igraph_vector_t* vec)
 {
   size_t n_edges = PySequence_Size(seq);
   IGRAPH_CHECK(igraph_vector_init(vec, n_edges));
@@ -88,8 +85,8 @@ static igraph_error_t py_sequence_to_igraph_vector_i(PyObject* seq,
   return IGRAPH_SUCCESS;
 }
 
-static igraph_error_t py_list_to_igraph_matrix_int_i(PyObject* list,
-    igraph_matrix_int_t* mat)
+static igraph_error_t py_list_to_igraph_matrix_int_i(
+  PyObject* list, igraph_matrix_int_t* mat)
 {
   size_t n_row = PyList_Size(list);
   PyObject* first_el = PyList_GetItem(list, 0);
@@ -130,8 +127,8 @@ static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
   return res;
 }
 
-static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
-                         PyObject* kwds)
+static PyObject* cluster(
+  PyObject* Py_UNUSED(dummy), PyObject* args, PyObject* kwds)
 {
   se2_init();
 
@@ -140,20 +137,9 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
   igraph_t* graph;
   se2_neighs neigh_list;
   igraph_vector_t weights;
-  char* kwlist[] = {
-    "graph",
-    "weights",
-    "discard_transient",
-    "independent_runs",
-    "max_threads",
-    "seed",
-    "target_clusters",
-    "target_partitions",
-    "subcluster",
-    "min_cluster",
-    "verbose",
-    NULL
-  };
+  char* kwlist[] = { "graph", "weights", "discard_transient",
+    "independent_runs", "max_threads", "seed", "target_clusters",
+    "target_partitions", "subcluster", "min_cluster", "verbose", NULL };
   int discard_transient = 0;
   int independent_runs = 0;
   int max_threads = 0;
@@ -167,17 +153,9 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
   PyObject* py_memb_obj;
 
   if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Obbbbbbbbp", kwlist,
-                                   &py_graph_obj,
-                                   &py_weights_obj,
-                                   &discard_transient,
-                                   &independent_runs,
-                                   &max_threads,
-                                   &seed,
-                                   &target_clusters,
-                                   &target_partitions,
-                                   &subcluster,
-                                   &min_cluster,
-                                   &verbose)) {
+        &py_graph_obj, &py_weights_obj, &discard_transient, &independent_runs,
+        &max_threads, &seed, &target_clusters, &target_partitions, &subcluster,
+        &min_cluster, &verbose)) {
     return NULL;
   }
 
@@ -197,8 +175,8 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
 
   if (target_clusters > igraph_vcount(graph)) {
     PyErr_SetString(PyExc_ValueError,
-                    "Number of target clusters cannot exceed the number of "
-                    "nodes in the graph.");
+      "Number of target clusters cannot exceed the number of "
+      "nodes in the graph.");
   }
 
   if (py_weights_obj && PySequence_Check(py_weights_obj)) {
@@ -207,7 +185,7 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
     if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
       IGRAPH_FINALLY_FREE();
       PyErr_SetString(PyExc_ValueError,
-                      "Number of weights does not match number of edges in graph.");
+        "Number of weights does not match number of edges in graph.");
       return NULL;
     }
 
@@ -232,30 +210,23 @@ static PyObject* cluster(PyObject* Py_UNUSED(dummy), PyObject* args,
   return py_memb_obj;
 }
 
-static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
-                             PyObject* kwds)
+static PyObject* order_nodes(
+  PyObject* Py_UNUSED(dummy), PyObject* args, PyObject* kwds)
 {
   se2_init();
 
   PyObject* py_graph_obj = NULL;
   PyObject* py_weights_obj = NULL;
   PyObject* py_memb_obj = NULL;
-  char* kwlist[] = {
-    "graph",
-    "membership",
-    "weights",
-    NULL
-  };
+  char* kwlist[] = { "graph", "membership", "weights", NULL };
   igraph_t* graph;
   igraph_vector_t weights;
   se2_neighs neigh_list;
   igraph_matrix_int_t memb, order;
   PyObject* py_order_obj;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|O", kwlist,
-                                   &py_graph_obj,
-                                   &py_memb_obj,
-                                   &py_weights_obj)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|O", kwlist, &py_graph_obj,
+        &py_memb_obj, &py_weights_obj)) {
     return NULL;
   }
 
@@ -269,7 +240,7 @@ static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
     if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
       IGRAPH_FINALLY_FREE();
       PyErr_SetString(PyExc_ValueError,
-                      "Number of weights does not match number of edges in graph.");
+        "Number of weights does not match number of edges in graph.");
       return NULL;
     }
     PYIGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, &weights, &neigh_list));
@@ -292,9 +263,11 @@ static PyObject* order_nodes(PyObject* Py_UNUSED(dummy), PyObject* args,
 }
 
 static PyMethodDef SpeakEasy2Methods[] = {
-  {"cluster", (PyCFunction)(void(*)(void))cluster, METH_VARARGS | METH_KEYWORDS, NULL},
-  {"order_nodes", (PyCFunction)(void(*)(void))order_nodes, METH_VARARGS | METH_KEYWORDS, NULL},
-  {NULL, NULL, 0, NULL}
+  { "cluster", (PyCFunction)(void (*)(void))cluster,
+    METH_VARARGS | METH_KEYWORDS, NULL },
+  { "order_nodes", (PyCFunction)(void (*)(void))order_nodes,
+    METH_VARARGS | METH_KEYWORDS, NULL },
+  { NULL, NULL, 0, NULL }
 };
 
 static struct PyModuleDef speakeasy2_module = {
