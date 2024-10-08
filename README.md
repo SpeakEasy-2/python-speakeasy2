@@ -6,6 +6,8 @@
 
 Provides the SpeakEasy2 community detection algorithm to cluster graph's stored as igraph's data type. The algorithm is described in the [Genome Biology article](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-023-03062-0).
 
+This uses a rewrite of the algorithm used in the publication, to see a comparison to the original implementation see [the benchmarks](https://github.com/SpeakEasy-2/libspeakeasy2/tree/master/benchmarks)
+
 Example:
 
 ```python
@@ -15,6 +17,28 @@ Example:
  g = ig.Graph.Famous("Zachary")
  memb = se2.cluster(g)
 ```
+
+Membership is returned as an `igraph.clustering.VertexClustering` object.
+Use `print` to view the membership:
+
+```python
+print(memb)
+```
+
+```python
+Clustering with 34 elements and 9 clusters
+[0] 0, 1, 2, 3, 7, 12, 13, 17, 19, 21
+[1] 14, 15, 18, 20, 22, 32, 33
+[2] 8, 30
+[3] 26, 29
+[4] 11
+[5] 23, 24, 25, 27, 31
+[6] 9
+[7] 28
+[8] 4, 5, 6, 10, 16
+```
+
+Or to convert to a python list for use outside of `igraph` run `memb.membership`.
 
 From the results, a node ordering can be computed to group nodes in a community together. This can be used as an index and works to display the community structure using a heatmap to view the adjacency matrix.
 
