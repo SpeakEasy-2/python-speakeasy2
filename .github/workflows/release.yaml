@@ -8,12 +8,8 @@ on:
       - devel
 
 jobs:
-  build:
-    uses: ./.github/workflows/build.yaml
-
   package_python:
-    needs: build
-    uses: ./.github/workflows/python.yaml
+    uses: ./.github/workflows/build.yaml
 
   release:
     name: Release new packages
@@ -43,8 +39,7 @@ jobs:
       - name: Copy final packages to release
         run: |
           mkdir dist
-          mv artifacts/speakeasy2-python-*-${{ github.sha }}/*.whl dist
-          mv artifacts/speakeasy2-python-Linux-3.12-${{ github.sha }}/*.tar.gz dist
+          mv artifacts/speakeasy2-python-*-${{ github.sha }}/* dist
 
       - name: Create release name
         run: echo RELEASE_NAME=${TAG_NAME/v/speakeasy2 } >> $GITHUB_ENV

@@ -1,143 +1,90 @@
-name: Build packages
+name: Package python packages
 
 on:
   - workflow_call
 
 jobs:
-  build-linux:
-    name: Build Linux toolbox
-    runs-on: ubuntu-20.04
+  build-packages:
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-    env:
-      CC: gcc-10
-      CXX: g++-10
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        sys:
+          - os: Ubuntu-latest
+            shell: bash
+          - os: macos-latest
+            shell: bash
+          - os: macos-13
+            shell: bash
+          ## Giving up on Windows. Need msys2 to install SE2 lib since it
+          ## depends on pthreads but building python wheels in msys2 leads to
+          ## msys2 specific wheels rather than wheels for normal Windows env.
+          # - os: windows-latest
+          #   shell: msys2
+
+    runs-on: ${{ matrix.sys.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.sys.shell }} {0}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
         with:
-          submodules: true
-          fetch-depth: 0
+          msystem: ucrt64
+          install: git base-devel
+          pacboy: cmake:p ninja:p toolchain:p python3:p python3-pip:p
+          update: true
+          location: D:\
 
-      - name: Clone igraph
-        run: |
-          cd vendor/speakeasy2
-          git submodule init
-          git submodule update --recursive
-
-      - name: Install dependencies
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt update && sudo apt upgrade
           sudo apt install cmake ninja-build gcc
 
-      - name: Set up python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Build from source
-        run: |
-          cmake -B build . -G Ninja \
-            -DCMAKE_PACKAGE_VERSION="${{ github.ref_name }}"
-          cmake --build build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: speakeasy2-${{ runner.os }}-${{ matrix.python-version }}-${{ github.sha }}
-          path: build/
-
-  build-windows:
-    name: Build Windows toolbox
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
-    defaults:
-      run:
-        shell:  msys2 {0}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-          fetch-depth: 0
-
-      - name: Install packages
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ucrt64
-          install: >-
-            git
-            base-devel
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-toolchain
-          update: true
-          location: D:\
-
-      - name: Clone igraph
-        run: |
-          cd vendor/speakeasy2
-          git submodule init
-          git submodule update --recursive
-
-      - name: Set up python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Build from source
-        run: |
-          cmake -B build . \
-            -G Ninja \
-            -DIGRAPH_OPENMP_SUPPORT=ON \
-            -DCMAKE_PACKAGE_VERSION="${{ github.ref_name }}"
-          cmake --build build
-
-      - name: Upload package
-        uses: actions/upload-artifact@v4
-        with:
-          name: speakeasy2-${{ runner.os }}-${{ matrix.python-version }}-${{ github.sha }}
-          path: build/
-
-  build-macos:
-    name: Build macOS toolbox
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-          fetch-depth: 0
-
-      - name: Clone igraph
-        run: |
-          cd vendor/speakeasy2
-          git submodule init
-          git submodule update --recursive
-
-      - name: Install dependencies
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
         run: brew install ninja
 
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Clone vendors
+        run: |
+          cd vendor/speakeasy2
+          git submodule init
+          git submodule update --recursive
+
+      - name: Install pipx
+        if: runner.os == 'Windows'
+        run: |
+          python3 -m pip install pipx
+          pipx ensurepath
+
+      - name: Install poetry
+        if: runner.os != 'Windows'
+        run: pipx install poetry
+
       - name: Set up python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "poetry"
 
-      - name: Build from source
+      - name: Build wheel
         run: |
-          cmake -B build . -G Ninja \
-            -DCMAKE_PACKAGE_VERSION="${{ github.ref_name }}"
-          cmake --build build
+          CMAKE_PACKAGE_VERSION="${{ github.ref_name}}" \
+            poetry build --format wheel
 
-      - name: Upload package
+      - name: Build source dist
+        if: (runner.os == 'Linux') && (matrix.python-version == '3.11')
+        run: poetry build --format sdist
+
+      - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: speakeasy2-${{ runner.os }}-${{ matrix.python-version }}-${{ github.sha }}
-          path: build/
+          name: speakeasy2-python-${{ matrix.sys.os }}-${{ matrix.python-version }}-${{ github.sha }}
+          path: dist/*

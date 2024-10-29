@@ -43,8 +43,13 @@ class CLibBuilder(build_clib):
 
     def cmake_config(self, name, source):
         args = [f"-B {os.path.join(self.build_temp, name)}", f"-S {source}"]
+
         if shutil.which("ninja"):
             args.append("-G Ninja")
+
+        package_version = os.getenv("CMAKE_PACKAGE_VERSION")
+        if package_version:
+            args.append(f"-D CMAKE_PACKAGE_VERSION={package_version}")
 
         self._cmake(args)
 
