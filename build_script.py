@@ -54,10 +54,6 @@ class CMakeCLibBuilder(build_clib):
         if shutil.which("ninja"):
             args.append("-G Ninja")
 
-        package_version = os.getenv("CMAKE_PACKAGE_VERSION")
-        if package_version:
-            args.append(f"-D CMAKE_PACKAGE_VERSION={package_version}")
-
         self._cmake(args)
 
     def cmake_build(self, name):
@@ -66,12 +62,21 @@ class CMakeCLibBuilder(build_clib):
 
 class ExtBuilder(build_ext):
     def run(self):
+        # On Windows, the extension builder's temp build directory is appended
+        # with Release. Elsewhere C lib's temp build directory and the
+        # extension builder's are the same.
+        if os.path.split(self.build_temp)[1] == "Release":
+            clib_build_dir = os.path.split(self.build_temp)[0]
+        else:
+            clib_build_dir = self.build_temp
+
         self.include_dirs.append(
-            os.path.join(self.build_temp, "libSpeakEasy2", "include")
+            os.path.join(clib_build_dir, "libSpeakEasy2", "include")
         )
         self.library_dirs.append(
-            os.path.join(self.build_temp, "libSpeakEasy2", "src", "speakeasy2")
+            os.path.join(clib_build_dir, "libSpeakEasy2", "src", "speakeasy2")
         )
+
         build_ext.run(self)
 
 
