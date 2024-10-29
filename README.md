@@ -85,7 +85,7 @@ pip install --user speakeasy2
 
 ## Building from source
 
-This package can be built using `CMake`. It requires the `flex`, `bison`, and `libxml2` dependencies for building `igraph` and `poetry` for managing python dependencies.
+Compilation depends on a C compiler, CMake, and (optionally) ninja.
 
 Since the `igraph` package is supplied by the vendored SE2 C library, after cloning the source directory, submodules most be recursively initialized.
 
@@ -95,26 +95,11 @@ cd python-speakeasy2
 git submodule update --init --recursive
 ```
 
-Then build the package using `cmake`:
+The CMake calls are wrapped into the python build logic in the `build_script.py` (this is a `poetry` specific method for building C extensions).
+This allows the package to be built using various python build backends.
+Since this package uses poetry, the suggested way to build the package is invoking `poetry build` and `poetry install`, which will install in development mode.
 
-```bash
-cmake -B build
-camke --build build
-```
-
-Since the compiled python shared libraries are built in the `build` directory, to use the local python package, link the shared libs to the python package:
-
-```bash
-cd speakeasy2
-ln -s ../build/_speakeasy2.so
-cd ..
-```
-
-Use `poetry` to install dependencies in a virtual env:
-
-```bash
-poetry install
-```
+For convenience, the provided `Makefile` defines the `install` target to do this and `clean-dist` to clear all generated files (as well as other targets, see the file for more).
 
 It should now be possible to run scripts through `poetry`:
 
@@ -127,3 +112,6 @@ Or enter a python repository with the private environment activate in the same w
 ```bash
 poetry run ipython
 ```
+
+If you don't want to use `poetry`, it's possible to build with other method in their standard way.
+For example `python -m build` or `pip install --editable .` should both work.
