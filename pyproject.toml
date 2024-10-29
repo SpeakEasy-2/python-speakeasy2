@@ -7,7 +7,21 @@ license = "GPLv3+"
 repository = "https://github.com/SpeakEasy-2/python-speakeasy2"
 keywords = ["network", "community detection", "cluster", "graph"]
 readme = "README.md"
+
 packages = [{ include = "speakeasy2" }]
+exclude = ["vendor"]
+include = [
+  { path = "vendor/python-igraph/src/_igraph/igraphmodule_api.h", format = "sdist"},
+  { path = "vendor/speakeasy2/CMakeLists.txt", format = "sdist"},
+  { path = "vendor/speakeasy2/examples/*", format = "sdist"},
+  { path = "vendor/speakeasy2/include/*", format = "sdist"},
+  { path = "vendor/speakeasy2/src/speakeasy2/*", format = "sdist"},
+  { path = "vendor/speakeasy2/vendor/CMakeLists.txt", format = "sdist"},
+  { path = "vendor/speakeasy2/vendor/igraph/etc/cmake/*", format = "sdist"},
+  { path = "vendor/speakeasy2/vendor/igraph/src/**/*", format = "sdist"},
+  { path = "vendor/speakeasy2/vendor/igraph/vendor/**/*", format = "sdist"},
+  { path = "vendor/speakeasy2/vendor/igraph/include/*", format = "sdist"},
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10"
@@ -48,5 +62,5 @@ script = "build.py"
 generate-setup-file = true
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "setuptools"]
+requires = ["poetry-core", "setuptools"]
 build-backend = "poetry.core.masonry.api"

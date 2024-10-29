@@ -4,7 +4,6 @@
 #include <Python.h>
 #include <igraph.h>
 #include <igraphmodule_api.h>
-#include <se2_version.h>
 #include <speak_easy_2.h>
 
 #define PYIGRAPH_CHECK(expr)                                                  \
@@ -287,8 +286,6 @@ PyMODINIT_FUNC PyInit__speakeasy2(void)
   if (import_igraph() < 0) {
     return NULL;
   }
-
-  PyModule_AddStringMacro(m, SE2_VERSION);
 
   return m;
 }

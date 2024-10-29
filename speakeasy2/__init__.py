@@ -22,15 +22,15 @@ Example:
 
 __all__ = ["cluster", "order_nodes", "__version__"]
 
+import importlib.metadata
 from typing import Optional
 
 import igraph as _ig
 
-from speakeasy2._speakeasy2 import SE2_VERSION
 from speakeasy2._speakeasy2 import cluster as _cluster
 from speakeasy2._speakeasy2 import order_nodes as _order_nodes
 
-__version__ = SE2_VERSION
+__version__ = importlib.metadata.version(__name__)
 
 
 def cluster(

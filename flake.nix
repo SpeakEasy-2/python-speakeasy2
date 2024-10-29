@@ -30,6 +30,8 @@
           cmake
           clang-tools
           ninja
+          gnumake
+          bear
           gdb
 
           # Poetry dependencies
