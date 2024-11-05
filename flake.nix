@@ -12,31 +12,30 @@
   outputs = { self, nixpkgs, poetry2nix }:
     let
       system = "x86_64-linux";
-      python = pkgs.python311;
       pkgs = import nixpkgs {
         inherit system;
         overlays = [ poetry2nix.overlays.default ];
       };
 
       pythonEnv = pkgs.poetry2nix.mkPoetryEnv {
-        inherit python;
         projectDir = ./.;
-        editablePackageSources = { speakeasy2 = ./speakeasy2; };
+        editablePackageSources = { speakeasy2 = ./.; };
         preferWheels = true;
       };
     in {
-      devShells.${system}.default = pkgs.mkShell {
-        packages = [ pythonEnv ] ++ (with pkgs; [
-          cmake
-          clang-tools
-          ninja
-          gnumake
-          bear
-          gdb
+      devShells.${system}.default =
+        (pkgs.mkShell.override { stdenv = pkgs.clangStdenv; }) {
+          packages = [ pythonEnv ] ++ (with pkgs; [
+            cmake
+            clang-tools
+            ninja
+            gnumake
+            bear
+            gdb
 
-          # Poetry dependencies
-          poetry
-        ]);
-      };
+            # Poetry dependencies
+            poetry
+          ]);
+        };
     };
 }
