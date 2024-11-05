@@ -35,7 +35,6 @@ black = "^24.2.0"
 python-lsp-server = "^1.10.0"
 pylsp-mypy = "^0.6.8"
 python-lsp-ruff = "^2.1.0"
-build = "^1.1.1"
 
 [tool.black]
 line-length = 79
