@@ -4,6 +4,7 @@
 #include <Python.h>
 #include <igraph.h>
 #include <igraphmodule_api.h>
+#include <numpy/arrayobject.h>
 #include <speak_easy_2.h>
 
 #define PYIGRAPH_CHECK(expr)                                                  \
@@ -112,6 +113,79 @@ static igraph_error_t py_list_to_igraph_matrix_int_i(
   return IGRAPH_SUCCESS;
 }
 
+typedef igraph_real_t element_to_double_t(char* dataptr);
+
+static igraph_real_t arr_bool_to_double_i(char* dataptr)
+{
+  return *(npy_bool*)dataptr;
+}
+
+static igraph_real_t arr_float32_to_double_i(char* dataptr)
+{
+  return *(npy_float32*)dataptr;
+}
+
+static igraph_real_t arr_float64_to_double_i(char* dataptr)
+{
+  return *(npy_float64*)dataptr;
+}
+
+static igraph_real_t arr_integer_to_double_i(char* dataptr)
+{
+  return *(npy_int*)dataptr;
+}
+
+static element_to_double_t* get_element_converter(PyArrayObject* arr)
+{
+  if (PyArray_ISBOOL(arr)) {
+    return arr_bool_to_double_i;
+  }
+
+  if (PyArray_TYPE(arr) == NPY_FLOAT32) {
+    return arr_float32_to_double_i;
+  }
+
+  if (PyArray_TYPE(arr) == NPY_FLOAT64) {
+    return arr_float64_to_double_i;
+  }
+
+  if (PyArray_ISINTEGER(arr)) {
+    return arr_integer_to_double_i;
+  }
+
+  PyErr_SetString(PyExc_TypeError,
+    "Data type of \"cols\" array is not handled. Please report or cast to "
+    "another data type with \"cols.astype\".");
+  return NULL;
+}
+
+static igraph_error_t ndarray_to_igraph_matrix_i(
+  PyArrayObject* arr, igraph_matrix_t* mat)
+{
+  npy_intp* dims = PyArray_DIMS(arr);
+  npy_intp stride_row = PyArray_STRIDE(arr, 0);
+  npy_intp stride_col = PyArray_STRIDE(arr, 1);
+  element_to_double_t* element_to_double;
+
+  element_to_double = get_element_converter(arr);
+  if (!element_to_double) {
+    return IGRAPH_FAILURE;
+  }
+
+  IGRAPH_CHECK(igraph_matrix_init(mat, dims[0], dims[1]));
+  IGRAPH_FINALLY(igraph_matrix_destroy, mat);
+
+  for (npy_intp j = 0; j < dims[1]; j++) {
+    char* dataptr = PyArray_BYTES(arr) + (stride_col * j);
+    for (npy_intp i = 0; i < dims[0]; i++) {
+      MATRIX(*mat, i, j) = element_to_double(dataptr);
+      dataptr += stride_row;
+    }
+  }
+
+  return IGRAPH_SUCCESS;
+}
+
 static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
 {
   PyObject* res = PyList_New(igraph_matrix_int_nrow(mat));
@@ -121,6 +195,20 @@ static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
       PyList_SetItem(inner, j, PyLong_FromLong(MATRIX(*mat, i, j)));
     }
     PyList_SetItem(res, i, inner);
+  }
+
+  return res;
+}
+
+static PyObject* igraph_vector_to_py_list_i(igraph_vector_t* vec)
+{
+  if (!vec) {
+    return PyList_New(0);
+  }
+
+  PyObject* res = PyList_New(igraph_vector_size(vec));
+  for (igraph_integer_t i = 0; i < igraph_vector_size(vec); i++) {
+    PyList_SetItem(res, i, PyFloat_FromDouble(VECTOR(*vec)[i]));
   }
 
   return res;
@@ -209,6 +297,66 @@ static PyObject* cluster(
   return py_memb_obj;
 }
 
+static PyObject* knn_graph(PyObject* Py_UNUSED(dummy), PyObject* args)
+{
+  se2_init();
+
+  PyObject* py_cols_obj;
+  int k;
+  int is_weighted;
+
+  igraph_matrix_t cols_i;
+  igraph_t graph_i;
+  igraph_vector_t weights_i;
+
+  PyObject* py_graph_obj;
+  PyObject* py_weights_obj;
+  PyObject* ret;
+
+  if (!PyArg_ParseTuple(args, "Oip", &py_cols_obj, &k, &is_weighted)) {
+    return NULL;
+  }
+
+  if (!PyArray_ISNUMBER((PyArrayObject*)py_cols_obj)) {
+    PyErr_SetString(PyExc_ValueError, "Cols must be numeric.");
+    return NULL;
+  }
+
+  if (PyArray_ISCOMPLEX((PyArrayObject*)py_cols_obj)) {
+    PyErr_SetString(PyExc_ValueError, "Cols must be real not complex.");
+    return NULL;
+  }
+
+  PYIGRAPH_CHECK(
+    ndarray_to_igraph_matrix_i((PyArrayObject*)py_cols_obj, &cols_i));
+  IGRAPH_FINALLY(igraph_matrix_destroy, &cols_i);
+
+  PYIGRAPH_CHECK(
+    se2_knn_graph(&cols_i, k, &graph_i, is_weighted ? &weights_i : NULL));
+  IGRAPH_FINALLY(igraph_destroy, &graph_i);
+
+  if (is_weighted) {
+    IGRAPH_FINALLY(igraph_vector_destroy, &weights_i);
+  }
+
+  igraph_matrix_destroy(&cols_i);
+  IGRAPH_FINALLY_CLEAN(1);
+
+  py_graph_obj = PyIGraph_FromCGraph(&graph_i);
+  py_weights_obj = igraph_vector_to_py_list_i(is_weighted ? &weights_i : NULL);
+
+  if (is_weighted) {
+    igraph_vector_destroy(&weights_i);
+    IGRAPH_FINALLY_CLEAN(1);
+  }
+
+  ret = PyTuple_New(2);
+  PyTuple_SET_ITEM(ret, 0, py_graph_obj);
+  PyTuple_SET_ITEM(ret, 1, py_weights_obj);
+
+  return ret;
+}
+
 static PyObject* order_nodes(
   PyObject* Py_UNUSED(dummy), PyObject* args, PyObject* kwds)
 {
@@ -264,6 +412,7 @@ static PyObject* order_nodes(
 static PyMethodDef SpeakEasy2Methods[] = {
   { "cluster", (PyCFunction)(void (*)(void))cluster,
     METH_VARARGS | METH_KEYWORDS, NULL },
+  { "knn_graph", knn_graph, METH_VARARGS, NULL },
   { "order_nodes", (PyCFunction)(void (*)(void))order_nodes,
     METH_VARARGS | METH_KEYWORDS, NULL },
   { NULL, NULL, 0, NULL }

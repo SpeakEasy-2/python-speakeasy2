@@ -20,14 +20,16 @@ Example:
 
 """
 
-__all__ = ["cluster", "order_nodes", "__version__"]
+__all__ = ["cluster", "knn_graph", "order_nodes", "__version__"]
 
 import importlib.metadata
 from typing import Optional
 
 import igraph as _ig
+import numpy as _np
 
 from speakeasy2._speakeasy2 import cluster as _cluster
+from speakeasy2._speakeasy2 import knn_graph as _knn_graph
 from speakeasy2._speakeasy2 import order_nodes as _order_nodes
 
 __version__ = importlib.metadata.version(__name__)
@@ -124,6 +126,46 @@ def cluster(
     return _ig.VertexClustering(g, membership=memb[0])
 
 
+def knn_graph(
+    cols: _np.ndarray, k: int, is_weighted: bool = False
+) -> _ig.Graph:
+    """Calculate a k-nearest neighbors graphs between columns.
+
+    Uses Euclidean distance to determine the k closest columns to each column.
+    In the resulting graph, there is a directed edge between each column and
+    it's k-nearest neighbors.
+
+    Parameters
+    ----------
+    cols: numpy.ndarray
+        The columns to compare. Should be in the form of a 2d array.
+    k: int
+        Number of closest neighbors to connect. Must be less than the number of
+        columns.
+    is_weighted: bool
+        Whether to return a weighted graph where weights are the similarity
+        between the two columns (1 / distance). Default False.
+
+    Returns
+    -------
+    graph: igraph.Graph
+        The knn graph as an igraph.Graph object.
+
+    """
+    if len(cols.shape) != 2:
+        raise ValueError("Cols must be 2-dimensional.")
+
+    g_base, weights = _knn_graph(cols, k, is_weighted)
+
+    # TODO: Ideally ig.Graph returned from C but currently get a GraphBase
+    # type.
+    g = _ig.Graph(g_base.vcount(), g_base.get_edgelist(), g_base.is_directed())
+    if weights:
+        g.es["weight"] = weights
+
+    return g
+
+
 def order_nodes(
     g: _ig.Graph,
     membership: _ig.VertexClustering | list[_ig.VertexClustering],
@@ -165,6 +207,7 @@ def order_nodes(
         in the same community are grouped together. If membership is a list
         VertexClusterings, the returned value will be a list of ordering with
         length equal to the length of membership.
+
     """
     if isinstance(weights, str):
         if weights in g.edge_attributes():

@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 
+import numpy as np
 from setuptools import Extension
 from setuptools.command.build_clib import build_clib
 from setuptools.command.build_ext import build_ext
@@ -15,6 +16,7 @@ extensions = [
         "speakeasy2._speakeasy2",
         sources=["speakeasy2/_speakeasy2.c"],
         include_dirs=[
+            np.get_include(),
             "vendor/speakeasy2/include",
             "vendor/speakeasy2/vendor/igraph/include",
             "vendor/python-igraph/src/_igraph",

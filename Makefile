@@ -1,4 +1,5 @@
 PYTHON_MODULE := $(PWD)/speakeasy2
+NUMPY_INCLUDE := $$(python -c 'import numpy as np; print(np.get_include())')
 
 .PHONY: all
 all: install
@@ -24,8 +25,11 @@ dist: clean-dist
 	$(MAKE) build
 
 .PHONY: compile_commands
-compile-commands: clean-dist
+compile_commands: clean-dist
 	bear -- $(MAKE) build
+	sed -i \
+	  "s#/tmp/tmp.*/\.venv/lib/[^\"]*#$(NUMPY_INCLUDE)#" \
+	  compile_commands.json
 
 .PHONY: clean
 clean:
