@@ -36,7 +36,7 @@ __version__ = importlib.metadata.version(__name__)
 
 
 def cluster(
-    g: _ig.Graph,
+    g: _ig.Graph | _np.ndarray,
     weights: Optional[str | list[int]] = "weight",
     discard_transient: int = 3,
     independent_runs: int = 10,
@@ -57,8 +57,9 @@ def cluster(
 
     Parameters
     ----------
-    g : igraph.Graph
-        The graph to cluster.
+    g : igraph.Graph, numpy.ndarray
+        The graph to cluster. If `g` is a `numpy.ndarray` it is treated as an
+        adjacency matrix and converted to an `igraph.Graph`.
     weights : str, list[float], None
         Optional name of weight attribute or list of weights. If a string, use
         the graph edge attribute with the given name (default is "weight"). If
@@ -98,6 +99,19 @@ def cluster(
         level clustering is in index 0.
 
     """
+    if isinstance(g, _np.ndarray):
+        assert g.ndim == 2, "Array must be 2d to be an adjacency matrix."
+        edgelist = list(zip(*g.nonzero()))
+        is_weighted = _np.logical_or(g == 0, g == 1).sum() > 0
+        is_directed = (g.shape[0] == g.shape[1]) and (
+            _np.abs(g - g.T) < 1e-5
+        ).all()
+
+        g = _ig.Graph(edgelist, directed=is_directed)
+        if is_weighted:
+            g.es["weight"] = [g[i, j] for i, j in edgelist]
+        print(g)
+
     if isinstance(weights, str):
         if weights in g.edge_attributes():
             weights = g.es[weights]
