@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "speakeasy2"
-version = "0.1.4a0"
+version = "0.1.4a1"
 description = "SpeakEasy2 community detection algorithm"
 authors = ["David R Connell <davidconnell12@gmail.com>"]
 license = "GPLv3+"
@@ -46,6 +46,8 @@ profile = "black"
 
 [tool.mypy]
 ignore_missing_imports = true
+warn_unused_configs = true
+exclude = [ "vendor/" ]
 
 [tool.pylsp-mypy]
 enabled = true
