@@ -33,11 +33,10 @@ compile_commands: clean-dist
 
 .PHONY: clean
 clean:
-	rm -rf build/temp*
+	rm -rf build
 
 .PHONY: clean-dist
 clean-dist: clean
 	rm -f $(PYTHON_MODULE)/_*.so
 	rm -rf dist
-	rm -rf build
 	rm -f setup.py
