@@ -23,7 +23,7 @@ Example:
 __all__ = ["cluster", "knn_graph", "order_nodes", "__version__"]
 
 import importlib.metadata
-from typing import Optional
+from typing import Optional, Sequence
 
 import igraph as _ig
 import numpy as _np
@@ -33,6 +33,21 @@ from speakeasy2._speakeasy2 import knn_graph as _knn_graph
 from speakeasy2._speakeasy2 import order_nodes as _order_nodes
 
 __version__ = importlib.metadata.version(__name__)
+
+
+def _to_graph(arr: _np.ndarray, weights: str) -> _ig.Graph:
+    assert arr.ndim == 2, "Array must be 2d to be an adjacency matrix."
+    edgelist = list(zip(*arr.nonzero()))
+    is_weighted = _np.logical_not(_np.logical_or(arr == 0, arr == 1)).sum() > 0
+    is_directed = (arr.shape[0] == arr.shape[1]) and (
+        _np.abs(arr - arr.T) < 1e-5
+    ).all()
+
+    g = _ig.Graph(edgelist, directed=is_directed)
+    if is_weighted:
+        g.es["weight"] = [arr[i, j] for i, j in edgelist]
+
+    return g
 
 
 def cluster(
@@ -100,16 +115,11 @@ def cluster(
 
     """
     if isinstance(g, _np.ndarray):
-        assert g.ndim == 2, "Array must be 2d to be an adjacency matrix."
-        edgelist = list(zip(*g.nonzero()))
-        is_weighted = _np.logical_not(_np.logical_or(g == 0, g == 1)).sum() > 0
-        is_directed = (g.shape[0] == g.shape[1]) and (
-            _np.abs(g - g.T) < 1e-5
-        ).all()
-
-        g = _ig.Graph(edgelist, directed=is_directed)
-        if is_weighted:
-            g.es["weight"] = [g[i, j] for i, j in edgelist]
+        if not isinstance(weights, str):
+            raise ValueError(
+                "Weights must be a string for an adjacency matrix."
+            )
+        g = _to_graph(g, weights=weights)
 
     if isinstance(weights, str):
         if weights in g.edge_attributes():
@@ -180,8 +190,10 @@ def knn_graph(
 
 
 def order_nodes(
-    g: _ig.Graph,
-    membership: _ig.VertexClustering | list[_ig.VertexClustering],
+    g: _ig.Graph | _np.ndarray,
+    membership: (
+        _ig.VertexClustering | list[_ig.VertexClustering] | Sequence[int]
+    ),
     weights: Optional[str | list[int]] = "weight",
 ) -> list[int] | list[list[int]]:
     """Order nodes by communities to emphasize network structure.
@@ -205,7 +217,8 @@ def order_nodes(
     ----------
     g : igraph.Graph
         The graph to cluster.
-    membership : igraph.VertexClustering or list[igraph.VertexClustering]
+    membership : igraph.VertexClustering, list[int],
+    or list[igraph.VertexClustering]
         A list of community labels obtained from a community detection
         algorithm.
     weights : str, list[float], None
@@ -222,6 +235,13 @@ def order_nodes(
         length equal to the length of membership.
 
     """
+    if isinstance(g, _np.ndarray):
+        if not isinstance(weights, str):
+            raise ValueError(
+                "Weights must be a string for an adjacency matrix."
+            )
+        g = _to_graph(g, weights)
+
     if isinstance(weights, str):
         if weights in g.edge_attributes():
             weights = g.es[weights]
@@ -230,7 +250,9 @@ def order_nodes(
         else:
             raise KeyError(f"Graph does not have edge attribute {weights}")
 
-    if isinstance(membership, list):
+    if isinstance(membership, Sequence) and isinstance(membership[0], int):
+        membership = _ig.VertexClustering(g, membership)
+    elif isinstance(membership, list):
         membership = [m.membership for m in membership]
         return _order_nodes(g, membership, weights=weights)
 
