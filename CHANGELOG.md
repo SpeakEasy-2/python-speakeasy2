@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reduce excessive dependency version constraints.
 
+### Fixed
+
+- Remove forgotten debug print statement
+
 ## [0.1.4] 2024-12-12
 
 ### Added

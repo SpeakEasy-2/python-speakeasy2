@@ -110,7 +110,6 @@ def cluster(
         g = _ig.Graph(edgelist, directed=is_directed)
         if is_weighted:
             g.es["weight"] = [g[i, j] for i, j in edgelist]
-        print(g)
 
     if isinstance(weights, str):
         if weights in g.edge_attributes():
