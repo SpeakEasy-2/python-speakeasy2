@@ -102,7 +102,7 @@ def cluster(
     if isinstance(g, _np.ndarray):
         assert g.ndim == 2, "Array must be 2d to be an adjacency matrix."
         edgelist = list(zip(*g.nonzero()))
-        is_weighted = _np.logical_or(g == 0, g == 1).sum() > 0
+        is_weighted = _np.logical_not(_np.logical_or(g == 0, g == 1)).sum() > 0
         is_directed = (g.shape[0] == g.shape[1]) and (
             _np.abs(g - g.T) < 1e-5
         ).all()
