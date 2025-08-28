@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Make functions more generic. Functions that expect a graph can accept an adjacency matrix. And functions that expect a VertexClustering (membership vector) can accept a sequence of integers.
+- Update libSE2 for performance improvements.
 
 ## [0.1.5] 2025-02-19
 
