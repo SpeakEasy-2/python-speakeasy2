@@ -239,7 +239,7 @@ static PyObject* cluster(
   igraph_matrix_int_t memb;
   PyObject* py_memb_obj;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Obbbbbbbbp", kwlist,
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Oiiiiiiiip", kwlist,
         &py_graph_obj, &py_weights_obj, &discard_transient, &independent_runs,
         &max_threads, &seed, &target_clusters, &target_partitions, &subcluster,
         &min_cluster, &verbose)) {

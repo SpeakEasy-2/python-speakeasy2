@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make functions more generic. Functions that expect a graph can accept an adjacency matrix. And functions that expect a VertexClustering (membership vector) can accept a sequence of integers.
 - Update libSE2 for performance improvements.
 
+### Fixed
+
+- Change unsigned chars to integers when parsing Python arguments in C.
+
 ## [0.1.5] 2025-02-19
 
 ### Changed
