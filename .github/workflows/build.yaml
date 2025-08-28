@@ -24,10 +24,6 @@ jobs:
           packages: cmake ninja-build gcc
           version: 1.0
 
-      - name: Install macOS dependencies
-        if: runner.os == 'macOS'
-        run: brew install ninja
-
       - uses: actions/checkout@v4
         with:
           submodules: true
