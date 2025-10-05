@@ -2,34 +2,26 @@ PYTHON_MODULE := $(PWD)/speakeasy2
 NUMPY_INCLUDE := $$(python -c 'import numpy as np; print(np.get_include())')
 
 .PHONY: all
-all: install
-
-.PHONY: install
-install: build
-	poetry install
+all: build
 
 .PHONY: build
 build:
-	poetry build
+	uv build
 
 .PHONY: sdist
 sdist:
-	poetry build --format sdist
+	uv build --sdist
 
 .PHONY: wheel
 wheel:
-	poetry build --format wheel
+	uv build --wheel
 
 .PHONY: dist
 dist: clean-dist
 	$(MAKE) build
 
-.PHONY: compile_commands
-compile_commands: clean-dist
-	bear -- $(MAKE) build
-	sed -i \
-	  "s#/tmp/tmp.*/\.venv/lib/[^\"]*#$(NUMPY_INCLUDE)#" \
-	  compile_commands.json
+build/wheel:
+	python -c "import scikit_build_core.build as build; build.build_wheel(\"$@\")"
 
 .PHONY: clean
 clean:

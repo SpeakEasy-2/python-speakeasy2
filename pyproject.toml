@@ -1,41 +1,30 @@
-[tool.poetry]
+[project]
 name = "speakeasy2"
-version = "0.1.7"
+version = "0.2.0a1"
 description = "SpeakEasy2 community detection algorithm"
-authors = ["David R Connell <davidconnell12@gmail.com>"]
-license = "GPLv3+"
-repository = "https://github.com/SpeakEasy-2/python-speakeasy2"
+authors = [{name = "David R Connell", email = "david32@dcon.addy.io"}]
+license = "GPL-3.0-or-later"
 keywords = ["network", "community detection", "cluster", "graph"]
 readme = "README.md"
+requires-python = ">=3.10"
 
-packages = [{ include = "speakeasy2" }]
-exclude = ["vendor"]
-include = [
-  { path = "vendor/python-igraph/src/_igraph/igraphmodule_api.h", format = "sdist"},
-  { path = "vendor/speakeasy2/CMakeLists.txt", format = "sdist"},
-  { path = "vendor/speakeasy2/examples/*", format = "sdist"},
-  { path = "vendor/speakeasy2/include/*", format = "sdist"},
-  { path = "vendor/speakeasy2/src/speakeasy2/*", format = "sdist"},
-  { path = "vendor/speakeasy2/vendor/CMakeLists.txt", format = "sdist"},
-  { path = "vendor/speakeasy2/vendor/igraph/etc/cmake/*", format = "sdist"},
-  { path = "vendor/speakeasy2/vendor/igraph/src/**/*", format = "sdist"},
-  { path = "vendor/speakeasy2/vendor/igraph/vendor/**/*", format = "sdist"},
-  { path = "vendor/speakeasy2/vendor/igraph/include/*", format = "sdist"},
+dependencies = ["igraph>=0.11.0", "numpy>=2.0.0"]
+
+[project.urls]
+Repository = "https://github.com/SpeakEasy-2/python-speakeasy2.git"
+Changelog = "https://github.com/SpeakEasy-2/python-speakeasy2/blob/master/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/SpeakEasy-2/python-speakeasy2/issues"
+
+[dependency-groups]
+dev = [
+  "ipdb>=0.13.13",
+  "ipython>=8.22.1",
+  "isort>=5.13.2",
+  "black>=24.2.0",
+  "python-lsp-server>=1.10.0",
+  "pylsp-mypy>=0.6.8",
+  "python-lsp-ruff>=2.1.0",
 ]
-
-[tool.poetry.dependencies]
-python = ">=3.10"
-igraph = "^0.11.0"
-numpy = "^2.0.0"
-
-[tool.poetry.group.dev.dependencies]
-ipdb = "^0.13.13"
-ipython = "^8.22.1"
-isort = "^5.13.2"
-black = "^24.2.0"
-python-lsp-server = "^1.10.0"
-pylsp-mypy = "^0.6.8"
-python-lsp-ruff = "^2.1.0"
 
 [tool.black]
 line-length = 79
@@ -59,10 +48,22 @@ line-length = 79
 ignore = ["E203", "E731"]
 select = ["A", "C", "D", "E", "F", "N", "RET", "SIM"]
 
-[tool.poetry.build]
-script = "build_script.py"
-generate-setup-file = true
+[tool.scikit-build]
+build-dir = "build/{wheel_tag}"
+sdist.exclude = ["vendor"]
+sdist.include = [
+   "vendor/python-igraph/src/_igraph/igraphmodule_api.h",
+   "vendor/speakeasy2/CMakeLists.txt",
+   "vendor/speakeasy2/examples/*",
+   "vendor/speakeasy2/include/*",
+   "vendor/speakeasy2/src/speakeasy2/*",
+   "vendor/speakeasy2/vendor/CMakeLists.txt",
+   "vendor/speakeasy2/vendor/igraph/etc/cmake/*",
+   "vendor/speakeasy2/vendor/igraph/src/**/*",
+   "vendor/speakeasy2/vendor/igraph/vendor/**/*",
+   "vendor/speakeasy2/vendor/igraph/include/*",
+]
 
 [build-system]
-requires = ["poetry-core", "setuptools", "numpy"]
-build-backend = "poetry.core.masonry.api"
+requires = ["scikit-build-core>=0.10", "numpy"]
+build-backend = "scikit_build_core.build"

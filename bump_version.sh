@@ -5,9 +5,9 @@
     exit 1
 }
 
-poetry version "$1"
-sed -i "s/\[Unreleased\]/[$(poetry version --short)] $(date +%Y-%m-%d)/" \
+uv version --bump "$1"
+sed -i "s/\[Unreleased\]/[$(uv version --short)] $(date +%Y-%m-%d)/" \
     CHANGELOG.md
 git add pyproject.toml CHANGELOG.md
 git commit -m "Bump version"
-git tag "v$(poetry version --short)"
+git tag "v$(uv version --short)"
