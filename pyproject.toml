@@ -25,6 +25,9 @@ dev = [
   "pylsp-mypy>=0.6.8",
   "python-lsp-ruff>=2.1.0",
 ]
+test = [
+    "pytest>=8.4.2",
+]
 
 [tool.black]
 line-length = 79

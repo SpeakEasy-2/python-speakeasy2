@@ -20,6 +20,14 @@ wheel:
 dist: clean-dist
 	$(MAKE) build
 
+.PHONY: check
+check: devenv
+	pytest tests/
+
+.PHONY: devenv
+devenv:
+	cmake --build build/cp*
+
 build/wheel:
 	python -c "import scikit_build_core.build as build; build.build_wheel(\"$@\")"
 
