@@ -1,33 +1,36 @@
 name: Package python packages
 
 on:
-  workflow_call:
-    inputs:
-      matrix-config:
-        required: true
+  - workflow_call
 
 jobs:
   build-packages:
     strategy:
       matrix:
-        python-version: $({ fromJson(inputs.matrix-config).python_versions })
-        os: $({ fromJson(inputs.matrix-config).oses })
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
 
     runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
 
     steps:
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
-          msystem: ucrt64
-          install: >-
-            base-devel
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-toolchain
           update: true
           location: D:\
+          path-type: strict
+          install: >-
+            git
+            base-devel
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-libxml2
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -48,24 +51,18 @@ jobs:
           git submodule update --recursive
 
       - name: Set up python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install python build packages
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build
-
-      - name: Build wheel Windows
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: python -m build --wheel
+          $Python_ROOT_DIR/python -m pip install --upgrade pip
+          $Python_ROOT_DIR/python -m pip install build
 
       - name: Build wheel
-        if: runner.os != 'Windows'
-        run: python -m build --wheel
+        run: $Python_ROOT_DIR/python -m build --wheel
 
       - name: Build source dist
         if: (runner.os == 'Linux') && (matrix.python-version == '3.13')

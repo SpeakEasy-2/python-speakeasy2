@@ -15,17 +15,14 @@ permissions:
 jobs:
   package_python:
     uses: ./.github/workflows/build.yaml
-    with:
-      matrix-config: ./.github/matrix_config.json
 
   check_packages:
     needs: package_python
     uses: ./.github/workflows/test.yaml
-    with:
-      matrix-config: ./.github/matrix_config.json
 
   github_release:
     name: Release new packages
+    needs: check_packages
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
     env:
@@ -34,7 +31,6 @@ jobs:
       checks: write
       contents: write
       pull-requests: write
-    needs: check_packages
 
     steps:
       - uses: actions/checkout@v4
@@ -71,8 +67,8 @@ jobs:
 
   publish_pypi:
     name: Release new packages
-    runs-on: ubuntu-latest
     needs: check_packages
+    runs-on: ubuntu-latest
     environment: release_${{ github.ref_type }}
     permissions:
       id-token: write
