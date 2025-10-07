@@ -1,21 +1,33 @@
 name: Package python packages
 
 on:
-  - workflow_call
+  workflow_call:
+    inputs:
+      matrix-config:
+        required: true
 
 jobs:
   build-packages:
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-        os: [ubuntu-latest, macos-latest, macos-13]
+        python-version: $({ fromJson(inputs.matrix-config).python_versions })
+        os: $({ fromJson(inputs.matrix-config).oses })
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
-        run: choco install git cmake ninja mingw
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          install: >-
+            base-devel
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-toolchain
+          update: true
+          location: D:\
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -46,11 +58,17 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build
 
+      - name: Build wheel Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: python -m build --wheel
+
       - name: Build wheel
+        if: runner.os != 'Windows'
         run: python -m build --wheel
 
       - name: Build source dist
-        if: (runner.os == 'Linux') && (matrix.python-version == '3.11')
+        if: (runner.os == 'Linux') && (matrix.python-version == '3.13')
         run: python -m build --sdist
 
       - name: Upload packages
