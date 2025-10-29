@@ -45,7 +45,7 @@ def _to_graph(arr: _np.ndarray, weights: str) -> _ig.Graph:
 
     g = _ig.Graph(edgelist, directed=is_directed)
     if is_weighted:
-        g.es["weight"] = [arr[i, j] for i, j in edgelist]
+        g.es[weights] = [arr[i, j] for i, j in edgelist]
 
     return g
 
