@@ -433,6 +433,12 @@ PyMODINIT_FUNC PyInit__speakeasy2(void)
   }
 
   if (import_igraph() < 0) {
+    Py_DECREF(m);
+    return NULL;
+  }
+
+  if (PyArray_ImportNumPyAPI() < 0) {
+    Py_DECREF(m);
     return NULL;
   }
 
