@@ -75,10 +75,25 @@ static igraph_error_t py_sequence_to_igraph_vector_i(
   PyObject* seq, igraph_vector_t* vec)
 {
   size_t n_edges = PySequence_Size(seq);
+  if ((n_edges == (size_t)-1) && PyErr_Occurred()) {
+    return IGRAPH_FAILURE;
+  }
+
   IGRAPH_CHECK(igraph_vector_init(vec, n_edges));
   IGRAPH_FINALLY(igraph_vector_destroy, vec);
   for (size_t i = 0; i < n_edges; i++) {
-    VECTOR(*vec)[i] = PyFloat_AsDouble(PySequence_GetItem(seq, i));
+    PyObject* item = PySequence_GetItem(seq, i);
+    if (item == NULL) {
+      return IGRAPH_FAILURE;
+    }
+
+    double val = PyFloat_AsDouble(item);
+    Py_DECREF(item);
+    if (val == -1.0 && PyErr_Occurred()) {
+      return IGRAPH_FAILURE;
+    }
+
+    VECTOR(*vec)[i] = val;
   }
   IGRAPH_FINALLY_CLEAN(1);
 
@@ -105,7 +120,11 @@ static igraph_error_t py_list_to_igraph_matrix_int_i(
   for (size_t i = 0; i < n_row; i++) {
     PyObject* inner = nested ? PyList_GetItem(list, i) : list;
     for (size_t j = 0; j < n_col; j++) {
-      MATRIX(*mat, i, j) = PyFloat_AsDouble(PyList_GetItem(inner, j));
+      double val = PyFloat_AsDouble(PyList_GetItem(inner, j));
+      if (val == -1.0 && PyErr_Occurred()) {
+        return IGRAPH_FAILURE;
+      }
+      MATRIX(*mat, i, j) = val;
     }
   }
   IGRAPH_FINALLY_CLEAN(1);
@@ -267,7 +286,7 @@ static PyObject* cluster(
   }
 
   if (py_weights_obj && PySequence_Check(py_weights_obj)) {
-    py_sequence_to_igraph_vector_i(py_weights_obj, &weights);
+    PYIGRAPH_CHECK(py_sequence_to_igraph_vector_i(py_weights_obj, &weights));
     IGRAPH_FINALLY(igraph_vector_destroy, &weights);
     if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
       IGRAPH_FINALLY_FREE();
