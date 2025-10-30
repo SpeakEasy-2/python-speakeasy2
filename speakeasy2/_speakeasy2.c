@@ -50,12 +50,19 @@ void se2_pyerror(
 igraph_error_t se2_pystatus(char const* message, void* data)
 {
   PyObject* msg = PyUnicode_FromString(message);
+  if (msg == NULL) {
+    return IGRAPH_FAILURE;
+  }
+
   PyObject* py_stdout = PySys_GetObject("stdout");
+  if (py_stdout == NULL) {
+    return IGRAPH_FAILURE;
+  }
 
-  return PyFile_WriteObject(msg, py_stdout, Py_PRINT_RAW);
-
+  int ret = PyFile_WriteObject(msg, py_stdout, Py_PRINT_RAW);
   Py_DECREF(msg);
-  Py_DECREF(py_stdout);
+
+  return (ret < 0) ? IGRAPH_FAILURE : IGRAPH_SUCCESS;
 }
 
 igraph_error_t se2_pyinterrupt(void* data)
