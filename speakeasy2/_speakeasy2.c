@@ -65,10 +65,7 @@ igraph_error_t se2_pystatus(char const* message, void* data)
   return (ret < 0) ? IGRAPH_FAILURE : IGRAPH_SUCCESS;
 }
 
-igraph_error_t se2_pyinterrupt(void* data)
-{
-  return PyErr_CheckSignals() < 0 ? IGRAPH_INTERRUPTED : IGRAPH_SUCCESS;
-}
+igraph_bool_t se2_pyinterrupt() { return PyErr_CheckSignals() < 0; }
 
 static void se2_init(void)
 {
