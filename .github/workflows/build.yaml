@@ -10,44 +10,27 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        os:
-          [
-            ubuntu-latest,
-            ubuntu-24.04-arm,
-            windows-latest,
-            windows-11-arm,
-            macos-15-intel,
-            macos-latest,
-          ]
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            arch: win_amd64
+            vcpkg_arch: x64
+            cmake_arch: x64
+          - os: windows-latest
+            arch: win32
+            vcpkg_arch: x86
+            cmake_arch: Win32
 
     runs-on: ${{ matrix.os }}
-
-    defaults:
-      run:
-        shell: ${{ contains(matrix.os, 'windows') && 'msys2 {0}' || 'bash' }}
 
     steps:
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          location: D:\
-          msystem: UCRT64
-          install: >-
-            git
-            base-devel
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-toolchain
-            mingw-w64-ucrt-x86_64-libxml2
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: cmake ninja-build gcc
-          version: 1.0
+        shell: pwsh
+        run: |
+          choco install winflexbison3
+          vcpkg integrate install
+          vcpkg install libxml2:${{ matrix.vcpkg_arch }}-windows-static-md
 
       - uses: actions/checkout@v4
         with:
@@ -55,24 +38,44 @@ jobs:
           fetch-depth: 0
 
       - name: Clone vendored software
+        shell: bash
         run: |
           cd vendor/speakeasy2
           git submodule init
           git submodule update --recursive
 
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v3.2.1
+        env:
+          CIBW_BUILD: ${{ runner.os == 'Windows' && format('*-{0}', matrix.arch) || '' }}
+          CIBW_BEFORE_BUILD_LINUX: >-
+            (if command -v yum; then
+               yum install -y flex bison libxml2-devel zlib-devel;
+             elif command -v apk; then
+               apk add flex bison libxml2-dev zlib-dev;
+             fi) && pip install -U cmake
+          CIBW_ENVIRONMENT_MACOS: 'LDFLAGS="-L$(brew --prefix libxml2)/lib" CPPFLAGS="-I$(brew --prefix libxml2)/include"'
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            IGRAPH_CMAKE_EXTRA_ARGS="-DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_arch }}-windows-static-md -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -A ${{ matrix.cmake_arch }}"
+            IGRAPH_EXTRA_LIBRARY_PATH="C:/vcpkg/installed/${{ matrix.vcpkg_arch }}-windows-static-md/lib/"
+            IGRAPH_EXTRA_LIBRARIES="libxml2,lzma,zlib,iconv,charset,bcrypt"
+            IGRAPH_EXTRA_DYNAMIC_LIBRARIES="wsock32,ws2_32"
+            IGRAPH_STATIC_EXTENSION=1
+        with:
+          output-dir: dist
+
       - name: Set up python
+        if: runner.os == 'Linux'
         uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
       - name: Install python build packages
+        if: runner.os == 'Linux'
         run: |
-          $Python_ROOT_DIR/python -m pip install --upgrade pip
-          $Python_ROOT_DIR/python -m pip install build
-
-      - name: Build wheel
-        run: $Python_ROOT_DIR/python -m build --wheel
+          python -m pip install --upgrade pip
+          python -m pip install build
 
       - name: Build source dist
         if: runner.os == 'Linux'
@@ -81,5 +84,5 @@ jobs:
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: speakeasy2-python-${{ matrix.os }}-${{ github.sha }}
+          name: speakeasy2-python-${{ matrix.os }}-${{ matrix.arch || 'all' }}-${{ github.sha }}
           path: dist/*
