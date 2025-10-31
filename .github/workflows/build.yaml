@@ -3,11 +3,13 @@ name: Package python packages
 on:
   - workflow_call
 
+env:
+  PYTHON_VERSION: "3.10"
+
 jobs:
   build-packages:
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
 
     runs-on: ${{ matrix.os }}
@@ -23,14 +25,14 @@ jobs:
         with:
           update: true
           location: D:\
-          path-type: strict
+          msystem: UCRT64
           install: >-
             git
             base-devel
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-libxml2
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-libxml2
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -53,7 +55,7 @@ jobs:
       - name: Set up python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
       - name: Install python build packages
@@ -65,11 +67,11 @@ jobs:
         run: $Python_ROOT_DIR/python -m build --wheel
 
       - name: Build source dist
-        if: (runner.os == 'Linux') && (matrix.python-version == '3.13')
+        if: runner.os == 'Linux'
         run: python -m build --sdist
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: speakeasy2-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ github.sha }}
+          name: speakeasy2-python-${{ matrix.os }}-${{ github.sha }}
           path: dist/*

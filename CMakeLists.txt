@@ -4,14 +4,15 @@ project(${SKBUILD_PROJECT_NAME} LANGUAGES C)
 
 find_package(
   Python
-  COMPONENTS Development.Module NumPy
+  COMPONENTS Development.Module NumPy ${SKBUILD_SABI_COMPONENT}
   REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory(vendor/speakeasy2)
 
-python_add_library(_speakeasy2 MODULE speakeasy2/_speakeasy2.c WITH_SOABI)
+python_add_library(_speakeasy2 MODULE WITH_SOABI USE_SABI
+  ${SKBUILD_SABI_VERSION} speakeasy2/_speakeasy2.c)
 target_link_libraries(_speakeasy2 PUBLIC SpeakEasy2)
 target_include_directories(_speakeasy2 PRIVATE vendor/python-igraph/src/_igraph
   ${Python_NumPy_INCLUDE_DIR})

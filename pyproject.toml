@@ -53,6 +53,7 @@ select = ["A", "C", "D", "E", "F", "N", "RET", "SIM"]
 
 [tool.scikit-build]
 build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp310"
 sdist.exclude = ["vendor"]
 sdist.include = [
    "vendor/python-igraph/src/_igraph/igraphmodule_api.h",

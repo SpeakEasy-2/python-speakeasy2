@@ -374,8 +374,13 @@ static PyObject* knn_graph(PyObject* Py_UNUSED(dummy), PyObject* args)
   }
 
   ret = PyTuple_New(2);
-  PyTuple_SET_ITEM(ret, 0, py_graph_obj);
-  PyTuple_SET_ITEM(ret, 1, py_weights_obj);
+  if ((PyTuple_SetItem(ret, 0, py_graph_obj) < 0)) {
+    return NULL;
+  };
+
+  if ((PyTuple_SetItem(ret, 1, py_weights_obj) < 0)) {
+    return NULL;
+  };
 
   return ret;
 }

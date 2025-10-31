@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Move from poetry -> uv.
+- Compile using stable API.
 
 ## [0.1.7] 2025-09-04
 

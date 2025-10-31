@@ -69,19 +69,19 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/windows@v2
         if: always() && runner.os == 'Windows'
         with:
-          check_name: Windows Test Results
+          check_name: ${{ matrix.os }} Test Results
           files: test-results/results.xml
 
       - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always() && runner.os == 'Linux'
         with:
-          check_name: Linux Test Results
+          check_name: ${{ matrix.os }} Test Results
           files: test-results/results.xml
 
       - name: Upload test results
         uses: EnricoMi/publish-unit-test-result-action/macos@v2
         if: always() && runner.os == 'macOS'
         with:
-          check_name: macOS Arm Test Results
+          check_name: ${{ matrix.os }} Test Results
           files: test-results/results.xml
