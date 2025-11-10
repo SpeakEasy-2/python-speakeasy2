@@ -35,9 +35,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install winflexbison3
           vcpkg integrate install
-          vcpkg install libxml2:${{ matrix.vcpkg_arch }}-windows-static-md
+          vcpkg install libxml2:${{ matrix.vcpkg_arch }}-windows-static-md pthreads:${{ matrix.vcpkg_arch }}-windows-static-md
 
       - uses: actions/checkout@v4
         with:
@@ -63,7 +62,7 @@ jobs:
              fi) && pip install -U cmake
           CIBW_ENVIRONMENT_MACOS: 'LDFLAGS="-L$(brew --prefix libxml2)/lib" CPPFLAGS="-I$(brew --prefix libxml2)/include"'
           CIBW_ENVIRONMENT_WINDOWS: >-
-            IGRAPH_CMAKE_EXTRA_ARGS="-DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_arch }}-windows-static-md -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -A ${{ matrix.cmake_arch }}"
+            CMAKE_ARGS="-DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_arch }}-windows-static-md -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -A ${{ matrix.cmake_arch }}"
             IGRAPH_EXTRA_LIBRARY_PATH="C:/vcpkg/installed/${{ matrix.vcpkg_arch }}-windows-static-md/lib/"
             IGRAPH_EXTRA_LIBRARIES="libxml2,lzma,zlib,iconv,charset,bcrypt"
             IGRAPH_EXTRA_DYNAMIC_LIBRARIES="wsock32,ws2_32"
