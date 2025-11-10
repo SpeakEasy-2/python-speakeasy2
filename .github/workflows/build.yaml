@@ -24,6 +24,13 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Cache vcpkg
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: C:/vcpkg/installed/
+          key: vcpkg-${{ runner.os }}-${{ matrix.vcpkg_arch }}
+
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
         shell: pwsh
