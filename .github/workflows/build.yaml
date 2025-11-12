@@ -10,8 +10,16 @@ jobs:
   build-packages:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
         include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm
+          - os: macos-latest
+            arch: arm
+          - os: macos-15-intel
+            arch: x64
           - os: windows-latest
             arch: win_amd64
             vcpkg_arch: x64
@@ -84,11 +92,11 @@ jobs:
           python -m pip install build
 
       - name: Build source dist
-        if: runner.os == 'Linux'
+        if: matrix.os == 'ubuntu-latest'
         run: python -m build --sdist
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: speakeasy2-python-${{ matrix.os }}-${{ matrix.arch || 'all' }}-${{ github.sha }}
+          name: speakeasy2-python-${{ matrix.os }}-${{ matrix.arch }}-${{ github.sha }}
           path: dist/*
