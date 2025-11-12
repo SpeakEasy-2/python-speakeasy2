@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move from poetry -> uv.
 - Compile using stable API.
 - Update python-igraph -> 1.0.0
+- Update libSE2 for MSVC support.
 
 ## [0.1.7] 2025-09-04
 
