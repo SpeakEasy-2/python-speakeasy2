@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compile using stable API.
 - Update python-igraph -> 1.0.0
 - Update libSE2 for MSVC support.
+- [BREAKING] Return membership as a list or list of lists instead of igraph's VertexClustering class.
 
 ## [0.1.7] 2025-09-04
 

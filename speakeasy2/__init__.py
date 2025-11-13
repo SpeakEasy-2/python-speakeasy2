@@ -23,7 +23,7 @@ Example:
 __all__ = ["cluster", "knn_graph", "order_nodes", "__version__"]
 
 import importlib.metadata
-from typing import Optional, Sequence
+from typing import Optional
 
 import igraph as _ig
 import numpy as _np
@@ -62,7 +62,7 @@ def cluster(
     subcluster: int = 1,
     min_cluster: int = 5,
     verbose: bool = False,
-) -> _ig.VertexClustering | list[_ig.VertexClustering]:
+) -> list[int] | list[list[int]]:
     """Cluster a graph using the SpeakEasy2 community detection algorithm.
 
     For all integer parameters below, values should be positive, setting a
@@ -108,10 +108,10 @@ def cluster(
 
     Returns
     -------
-    memb : igraph.VertexClustering or list(igraph.VertexClustering)
-        The detected community structure. If subclustering, a list of
-        igraph.VertexClustering will be returned, one for each level. The top
-        level clustering is in index 0.
+    memb : list[int] | list[list[int]]
+        The detected community structure. If subclustering, a nested list will
+        be returned, one list for each level of clustering. The top level
+        clustering is in index 0.
 
     """
     if isinstance(g, _np.ndarray):
@@ -129,7 +129,7 @@ def cluster(
         else:
             raise KeyError(f"Graph does not have edge attribute {weights}")
 
-    memb = _cluster(
+    return _cluster(
         g,
         weights,
         discard_transient=discard_transient,
@@ -142,11 +142,6 @@ def cluster(
         min_cluster=min_cluster,
         verbose=verbose,
     )
-
-    if subcluster > 1:
-        return [_ig.VertexClustering(g, membership=m) for m in memb]
-
-    return _ig.VertexClustering(g, membership=memb[0])
 
 
 def knn_graph(
@@ -191,9 +186,7 @@ def knn_graph(
 
 def order_nodes(
     g: _ig.Graph | _np.ndarray,
-    membership: (
-        _ig.VertexClustering | list[_ig.VertexClustering] | Sequence[int]
-    ),
+    membership: list[int] | list[list[int]],
     weights: Optional[str | list[int]] = "weight",
 ) -> list[int] | list[list[int]]:
     """Order nodes by communities to emphasize network structure.
@@ -217,10 +210,8 @@ def order_nodes(
     ----------
     g : igraph.Graph
         The graph to cluster.
-    membership : igraph.VertexClustering, list[int],
-    or list[igraph.VertexClustering]
-        A list of community labels obtained from a community detection
-        algorithm.
+    membership : list[int] | list[list[int]]
+        Community labels obtained from a community detection algorithm.
     weights : str, list[float], None
         Optional name of weight attribute or list of weights. If a string, use
         the graph edge attribute with the given name (default is "weight"). If
@@ -228,11 +219,10 @@ def order_nodes(
 
     Returns
     -------
-    ordering : list[int] or list[list[int]]
-        A list of indices that can be applied to reorder nodes such that nodes
-        in the same community are grouped together. If membership is a list
-        VertexClusterings, the returned value will be a list of ordering with
-        length equal to the length of membership.
+    ordering : list[int] | list[list[int]]
+        An array of indices with shape equal to the input membership that can
+        be applied to reorder nodes such that nodes in the same community are
+        grouped together.
 
     """
     if isinstance(g, _np.ndarray):
@@ -250,10 +240,4 @@ def order_nodes(
         else:
             raise KeyError(f"Graph does not have edge attribute {weights}")
 
-    if isinstance(membership, Sequence) and isinstance(membership[0], int):
-        membership = _ig.VertexClustering(g, membership)
-    elif isinstance(membership, list):
-        membership = [m.membership for m in membership]
-        return _order_nodes(g, membership, weights=weights)
-
-    return _order_nodes(g, membership.membership, weights=weights)[0]
+    return _order_nodes(g, membership, weights=weights)

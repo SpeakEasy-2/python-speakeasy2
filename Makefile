@@ -1,6 +1,3 @@
-PYTHON_MODULE := $(PWD)/speakeasy2
-NUMPY_INCLUDE := $$(python -c 'import numpy as np; print(np.get_include())')
-
 .PHONY: all
 all: build
 
@@ -25,8 +22,8 @@ check: devenv
 	pytest tests/
 
 .PHONY: devenv
-devenv:
-	cmake --build build/cp*
+devenv: build/wheel
+	cmake --build build/cp310-abi3-*
 
 build/wheel:
 	python -c "import scikit_build_core.build as build; build.build_wheel(\"$@\")"

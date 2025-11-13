@@ -211,16 +211,30 @@ static igraph_error_t ndarray_to_igraph_matrix_i(
 
 static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
 {
-  PyObject* res = PyList_New(igraph_matrix_int_nrow(mat));
+  PyObject* outer = PyList_New(igraph_matrix_int_nrow(mat));
+  if (!outer) {
+    return NULL;
+  }
+
   for (igraph_integer_t i = 0; i < igraph_matrix_int_nrow(mat); i++) {
     PyObject* inner = PyList_New(igraph_matrix_int_ncol(mat));
+    if (!inner) {
+      return NULL;
+    }
     for (igraph_integer_t j = 0; j < igraph_matrix_int_ncol(mat); j++) {
       PyList_SetItem(inner, j, PyLong_FromLong(MATRIX(*mat, i, j)));
     }
-    PyList_SetItem(res, i, inner);
+    PyList_SetItem(outer, i, inner);
   }
 
-  return res;
+  if (igraph_matrix_int_nrow(mat) == 1) {
+    PyObject* res = PyList_GetItem(outer, 0);
+    Py_INCREF(res);
+    Py_DECREF(outer);
+    return res;
+  }
+
+  return outer;
 }
 
 static PyObject* igraph_vector_to_py_list_i(igraph_vector_t* vec)
@@ -314,6 +328,10 @@ static PyObject* cluster(
   IGRAPH_FINALLY(igraph_matrix_int_destroy, &memb);
 
   py_memb_obj = igraph_matrix_int_to_py_list_i(&memb);
+  if (!py_memb_obj && PyErr_Occurred()) {
+    IGRAPH_FINALLY_FREE();
+    return NULL;
+  }
   igraph_matrix_int_destroy(&memb);
   IGRAPH_FINALLY_CLEAN(1);
 
@@ -367,6 +385,10 @@ static PyObject* knn_graph(PyObject* Py_UNUSED(dummy), PyObject* args)
 
   py_graph_obj = PyIGraph_FromCGraph(&graph_i);
   py_weights_obj = igraph_vector_to_py_list_i(is_weighted ? &weights_i : NULL);
+  if (!py_weights_obj && PyErr_Occurred()) {
+    IGRAPH_FINALLY_FREE();
+    return NULL;
+  }
 
   if (is_weighted) {
     igraph_vector_destroy(&weights_i);
@@ -429,6 +451,10 @@ static PyObject* order_nodes(
   PYIGRAPH_CHECK(se2_order_nodes(&neigh_list, &memb, &order));
   IGRAPH_FINALLY(igraph_matrix_int_destroy, &order);
   py_order_obj = igraph_matrix_int_to_py_list_i(&order);
+  if (!py_order_obj && PyErr_Occurred()) {
+    IGRAPH_FINALLY_FREE();
+    return NULL;
+  }
 
   igraph_matrix_int_destroy(&memb);
   igraph_matrix_int_destroy(&order);
