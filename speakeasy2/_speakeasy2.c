@@ -108,6 +108,11 @@ static igraph_error_t py_list_to_igraph_matrix_int_i(
   PyObject* list, igraph_matrix_int_t* mat)
 {
   size_t n_row = PyList_Size(list);
+  if (n_row == 0) {
+    IGRAPH_CHECK(igraph_matrix_int_init(mat, 0, 0));
+    return IGRAPH_SUCCESS;
+  }
+
   PyObject* first_el = PyList_GetItem(list, 0);
   size_t n_col = 0;
   bool nested = true;
@@ -212,19 +217,35 @@ static igraph_error_t ndarray_to_igraph_matrix_i(
 static PyObject* igraph_matrix_int_to_py_list_i(igraph_matrix_int_t* mat)
 {
   PyObject* outer = PyList_New(igraph_matrix_int_nrow(mat));
-  if (!outer) {
+  if (outer == NULL) {
     return NULL;
   }
 
   for (igraph_integer_t i = 0; i < igraph_matrix_int_nrow(mat); i++) {
     PyObject* inner = PyList_New(igraph_matrix_int_ncol(mat));
-    if (!inner) {
+    if (inner == NULL) {
+      Py_DECREF(outer);
       return NULL;
     }
     for (igraph_integer_t j = 0; j < igraph_matrix_int_ncol(mat); j++) {
-      PyList_SetItem(inner, j, PyLong_FromLong(MATRIX(*mat, i, j)));
+      PyObject* val = PyLong_FromLong(MATRIX(*mat, i, j));
+      if (val == NULL) {
+        Py_DECREF(outer);
+        Py_DECREF(inner);
+        return NULL;
+      }
+      if ((PyList_SetItem(inner, j, val)) < 0) {
+        Py_DECREF(outer);
+        Py_DECREF(inner);
+        Py_DECREF(val);
+        return NULL;
+      };
     }
-    PyList_SetItem(outer, i, inner);
+    if ((PyList_SetItem(outer, i, inner)) < 0) {
+      Py_DECREF(inner);
+      Py_DECREF(outer);
+      return NULL;
+    };
   }
 
   if (igraph_matrix_int_nrow(mat) == 1) {
@@ -244,8 +265,21 @@ static PyObject* igraph_vector_to_py_list_i(igraph_vector_t* vec)
   }
 
   PyObject* res = PyList_New(igraph_vector_size(vec));
+  if (res == NULL) {
+    return NULL;
+  }
+
   for (igraph_integer_t i = 0; i < igraph_vector_size(vec); i++) {
-    PyList_SetItem(res, i, PyFloat_FromDouble(VECTOR(*vec)[i]));
+    PyObject* val = PyFloat_FromDouble(VECTOR(*vec)[i]);
+    if (val == NULL) {
+      Py_DECREF(res);
+      return NULL;
+    }
+    if ((PyList_SetItem(res, i, val)) < 0) {
+      Py_DECREF(res);
+      Py_DECREF(val);
+      return NULL;
+    };
   }
 
   return res;
@@ -328,7 +362,7 @@ static PyObject* cluster(
   IGRAPH_FINALLY(igraph_matrix_int_destroy, &memb);
 
   py_memb_obj = igraph_matrix_int_to_py_list_i(&memb);
-  if (!py_memb_obj && PyErr_Occurred()) {
+  if (py_memb_obj == NULL) {
     IGRAPH_FINALLY_FREE();
     return NULL;
   }
@@ -384,8 +418,12 @@ static PyObject* knn_graph(PyObject* Py_UNUSED(dummy), PyObject* args)
   IGRAPH_FINALLY_CLEAN(1);
 
   py_graph_obj = PyIGraph_FromCGraph(&graph_i);
+  if (py_graph_obj == NULL) {
+    IGRAPH_FINALLY_FREE();
+    return NULL;
+  }
   py_weights_obj = igraph_vector_to_py_list_i(is_weighted ? &weights_i : NULL);
-  if (!py_weights_obj && PyErr_Occurred()) {
+  if (py_weights_obj == NULL) {
     IGRAPH_FINALLY_FREE();
     return NULL;
   }
@@ -396,11 +434,25 @@ static PyObject* knn_graph(PyObject* Py_UNUSED(dummy), PyObject* args)
   }
 
   ret = PyTuple_New(2);
+  if (ret == NULL) {
+    Py_DECREF(py_graph_obj);
+    Py_DECREF(py_weights_obj);
+    IGRAPH_FINALLY_FREE();
+    return NULL;
+  }
+
   if ((PyTuple_SetItem(ret, 0, py_graph_obj) < 0)) {
+    Py_DECREF(py_graph_obj);
+    Py_DECREF(py_weights_obj);
+    Py_DECREF(ret);
+    IGRAPH_FINALLY_FREE();
     return NULL;
   };
 
   if ((PyTuple_SetItem(ret, 1, py_weights_obj) < 0)) {
+    Py_DECREF(py_weights_obj);
+    Py_DECREF(ret);
+    IGRAPH_FINALLY_FREE();
     return NULL;
   };
 
@@ -451,7 +503,7 @@ static PyObject* order_nodes(
   PYIGRAPH_CHECK(se2_order_nodes(&neigh_list, &memb, &order));
   IGRAPH_FINALLY(igraph_matrix_int_destroy, &order);
   py_order_obj = igraph_matrix_int_to_py_list_i(&order);
-  if (!py_order_obj && PyErr_Occurred()) {
+  if (py_order_obj == NULL) {
     IGRAPH_FINALLY_FREE();
     return NULL;
   }
