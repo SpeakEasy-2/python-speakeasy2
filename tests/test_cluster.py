@@ -45,7 +45,7 @@ class graph:
         arr = np.zeros((n_nodes, n_nodes))
         arr[i, j] = weights
 
-        return arr
+        return arr + arr.T
 
     def to_igraph(self, isweighted: bool) -> ig.Graph:
         g = self._graph.copy()

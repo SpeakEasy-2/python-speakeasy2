@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tests.
 - Pre-compile binaries for more environments.
+- Directly support numpy arrays as graphs (without having to go through igraph datatype as intermediary).
 
 ### Changed
 

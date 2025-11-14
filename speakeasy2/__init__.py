@@ -76,9 +76,10 @@ def cluster(
         The graph to cluster. If `g` is a `numpy.ndarray` it is treated as an
         adjacency matrix and converted to an `igraph.Graph`.
     weights : str, list[float], None
-        Optional name of weight attribute or list of weights. If a string, use
-        the graph edge attribute with the given name (default is "weight"). If
-        a list, must have length equal to the number of edges in the graph.
+        Optional name of weight attribute or list of weights. Only used when
+        `g` is an igraph.Graph. If a string, use the graph edge attribute with
+        the given name (default is "weight"). If a list, must have length equal
+        to the number of edges in the graph.
     discard_transient : int
         The number of partitions to discard before tracking. Default 3.
     independent_runs : int
@@ -114,19 +115,14 @@ def cluster(
         clustering is in index 0.
 
     """
-    if isinstance(g, _np.ndarray):
-        if not isinstance(weights, str):
-            raise ValueError(
-                "Weights must be a string for an adjacency matrix."
-            )
-        g = _to_graph(g, weights=weights)
+    if not isinstance(g, _np.ndarray | _ig.Graph):
+        raise TypeError("Graph must be either an ndarray or an igraph graph.")
 
-    if isinstance(weights, str):
+    weights = None
+    if isinstance(g, _ig.Graph) and isinstance(weights, str):
         if weights in g.edge_attributes():
             weights = g.es[weights]
-        elif weights == "weight":
-            weights = None
-        else:
+        elif weights != "weight":
             raise KeyError(f"Graph does not have edge attribute {weights}")
 
     return _cluster(
@@ -225,14 +221,7 @@ def order_nodes(
         grouped together.
 
     """
-    if isinstance(g, _np.ndarray):
-        if not isinstance(weights, str):
-            raise ValueError(
-                "Weights must be a string for an adjacency matrix."
-            )
-        g = _to_graph(g, weights)
-
-    if isinstance(weights, str):
+    if isinstance(g, _ig.Graph) and isinstance(weights, str):
         if weights in g.edge_attributes():
             weights = g.es[weights]
         elif weights == "weight":

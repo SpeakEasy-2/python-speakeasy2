@@ -163,7 +163,7 @@ static igraph_real_t arr_integer_to_double_i(char* dataptr)
   return *(npy_int*)dataptr;
 }
 
-static element_to_double_t* get_element_converter(PyArrayObject* arr)
+static element_to_double_t* get_element_converter(PyArrayObject const* arr)
 {
   if (PyArray_ISBOOL(arr)) {
     return arr_bool_to_double_i;
@@ -185,6 +185,182 @@ static element_to_double_t* get_element_converter(PyArrayObject* arr)
     "Data type of \"cols\" array is not handled. Please report or cast to "
     "another data type with \"cols.astype\".");
   return NULL;
+}
+
+#define EPS 1e-5
+#define ISZERO(n) (((n) > -EPS) && ((n) < EPS))
+#define ISONE(n) ISZERO((n) - 1)
+
+static igraph_bool_t is_weighted(
+  PyArrayObject const* arr, element_to_double_t* caster)
+{
+  npy_intp const n_nodes = PyArray_DIMS(arr)[0];
+  npy_intp const stride_row = PyArray_STRIDE(arr, 0);
+  npy_intp const stride_col = PyArray_STRIDE(arr, 1);
+
+  igraph_real_t val = 0;
+  for (npy_intp j = 0; j < n_nodes; j++) {
+    char* dataptr = PyArray_BYTES(arr) + (stride_col * j);
+    for (npy_intp i = 0; i < n_nodes; i++) {
+      val = caster(dataptr);
+      if (!(ISZERO(val) || ISONE(val))) {
+        return true;
+      }
+      dataptr += stride_row;
+    }
+  }
+
+  return false;
+}
+
+static igraph_error_t arr_weighted_to_neighlist(
+  PyArrayObject const* arr, se2_neighs* neighlist, element_to_double_t* caster)
+{
+  npy_intp const stride_row = PyArray_STRIDE(arr, 0);
+  npy_intp const stride_col = PyArray_STRIDE(arr, 1);
+  igraph_integer_t const n_nodes = neighlist->n_nodes;
+
+  for (size_t j = 0; j < n_nodes; j++) {
+    char* dataptr = PyArray_BYTES(arr) + (stride_col * j);
+    igraph_vector_t* weights = &VECTOR(*neighlist->weights)[j];
+    IGRAPH_CHECK(igraph_vector_resize(weights, n_nodes));
+    for (size_t i = 0; i < n_nodes; i++) {
+      VECTOR(*weights)[i] = caster(dataptr);
+      dataptr += stride_row;
+    }
+  }
+  return IGRAPH_SUCCESS;
+}
+
+static igraph_error_t arr_unweighted_to_neighlist(
+  PyArrayObject const* arr, se2_neighs* neighlist, element_to_double_t* caster)
+{
+  npy_intp const stride_row = PyArray_STRIDE(arr, 0);
+  npy_intp const stride_col = PyArray_STRIDE(arr, 1);
+  igraph_integer_t const n_nodes = neighlist->n_nodes;
+
+  for (size_t j = 0; j < n_nodes; j++) {
+    igraph_vector_int_t* neighbors = &VECTOR(*neighlist->neigh_list)[j];
+    igraph_integer_t n_neighs = 0;
+
+    char* dataptr = PyArray_BYTES(arr) + (stride_col * j);
+    for (igraph_integer_t i = 0; i < n_nodes; i++) {
+      n_neighs += caster(dataptr) > EPS;
+      dataptr += stride_row;
+    }
+
+    VECTOR(*neighlist->sizes)[j] = n_neighs;
+    igraph_vector_int_resize(neighbors, n_neighs);
+
+    dataptr = PyArray_BYTES(arr) + (stride_col * j);
+    igraph_integer_t count = 0;
+    for (igraph_integer_t i = 0; i < n_nodes; i++) {
+      if (caster(dataptr) > EPS) {
+        VECTOR(*neighbors)[count++] = i;
+      }
+      dataptr += stride_row;
+    }
+  }
+
+  return IGRAPH_SUCCESS;
+}
+
+static igraph_error_t ndarray_to_neighlist(
+  PyObject const* py_graph_obj, se2_neighs* neighlist)
+{
+  PyArrayObject const* arr = (PyArrayObject*)py_graph_obj;
+  npy_intp const* dims = PyArray_DIMS(arr);
+  igraph_integer_t const n_nodes = dims[0];
+  element_to_double_t* element_to_double;
+
+  if (dims[0] != dims[1]) {
+    PyErr_SetString(
+      PyExc_AssertionError, "Expected adjacency matrix to be square.");
+    return IGRAPH_FAILURE;
+  }
+  neighlist->n_nodes = n_nodes;
+
+  element_to_double = get_element_converter(arr);
+  if (!element_to_double) {
+    return IGRAPH_FAILURE;
+  }
+
+  /* NOTE: We don't actually have to calculate kin or total weights because it
+  will be done at the start of the SE2 algorithm. */
+  neighlist->total_weight = 0;
+  neighlist->kin = igraph_malloc(sizeof(*neighlist->kin));
+  IGRAPH_CHECK_OOM(neighlist->kin, "");
+  IGRAPH_FINALLY(igraph_free, neighlist->kin);
+  IGRAPH_CHECK(igraph_vector_init(neighlist->kin, n_nodes));
+  IGRAPH_FINALLY(igraph_vector_destroy, neighlist->kin);
+
+  if (is_weighted(arr, element_to_double)) {
+    neighlist->weights = igraph_malloc(sizeof(*neighlist->weights));
+    IGRAPH_CHECK_OOM(neighlist->weights, "");
+    IGRAPH_FINALLY(igraph_free, neighlist->weights);
+    IGRAPH_CHECK(igraph_vector_list_init(neighlist->weights, n_nodes));
+    IGRAPH_FINALLY(igraph_vector_list_destroy, neighlist->weights);
+
+    neighlist->neigh_list = NULL;
+    neighlist->sizes = NULL;
+
+    IGRAPH_CHECK(arr_weighted_to_neighlist(arr, neighlist, element_to_double));
+  } else {
+    neighlist->neigh_list = igraph_malloc(sizeof(*neighlist->neigh_list));
+    IGRAPH_CHECK_OOM(neighlist->neigh_list, "");
+    IGRAPH_FINALLY(igraph_free, neighlist->neigh_list);
+    IGRAPH_CHECK(igraph_vector_int_list_init(neighlist->neigh_list, n_nodes));
+    IGRAPH_FINALLY(igraph_vector_int_list_destroy, neighlist->neigh_list);
+
+    neighlist->sizes = igraph_malloc(sizeof(*neighlist->sizes));
+    IGRAPH_CHECK_OOM(neighlist->sizes, "");
+    IGRAPH_FINALLY(igraph_free, neighlist->sizes);
+    IGRAPH_CHECK(igraph_vector_int_init(neighlist->sizes, n_nodes));
+    IGRAPH_FINALLY(igraph_vector_int_destroy, neighlist->sizes);
+
+    neighlist->weights = NULL;
+
+    IGRAPH_CHECK(
+      arr_unweighted_to_neighlist(arr, neighlist, element_to_double));
+  }
+
+  return IGRAPH_SUCCESS;
+}
+
+static igraph_error_t igraph_to_neighlist(
+  PyObject* py_graph_obj, PyObject* py_weights_obj, se2_neighs* neigh_list)
+{
+  igraph_t* graph = PyIGraph_ToCGraph(py_graph_obj);
+  igraph_vector_t weights;
+  if (py_weights_obj && PySequence_Check(py_weights_obj)) {
+    IGRAPH_CHECK(py_sequence_to_igraph_vector_i(py_weights_obj, &weights));
+    IGRAPH_FINALLY(igraph_vector_destroy, &weights);
+    if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
+      PyErr_SetString(PyExc_ValueError,
+        "Number of weights does not match number of edges in graph.");
+      return IGRAPH_FAILURE;
+    }
+
+    IGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, &weights, neigh_list));
+    igraph_vector_destroy(&weights);
+    IGRAPH_FINALLY_CLEAN(1);
+  } else {
+    IGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, NULL, neigh_list));
+  }
+
+  return IGRAPH_SUCCESS;
+}
+
+static igraph_error_t py_graph_to_neighlist(
+  PyObject* py_graph_obj, PyObject* py_weight_obj, se2_neighs* neigh_list)
+{
+  if (PyArray_Check(py_graph_obj)) {
+    IGRAPH_CHECK(ndarray_to_neighlist(py_graph_obj, neigh_list));
+  } else {
+    IGRAPH_CHECK(igraph_to_neighlist(py_graph_obj, py_weight_obj, neigh_list));
+  }
+
+  return IGRAPH_SUCCESS;
 }
 
 static igraph_error_t ndarray_to_igraph_matrix_i(
@@ -292,9 +468,7 @@ static PyObject* cluster(
 
   PyObject* py_graph_obj = NULL;
   PyObject* py_weights_obj = NULL;
-  igraph_t* graph;
   se2_neighs neigh_list;
-  igraph_vector_t weights;
   char* kwlist[] = { "graph", "weights", "discard_transient",
     "independent_runs", "max_threads", "seed", "target_clusters",
     "target_partitions", "subcluster", "min_cluster", "verbose", NULL };
@@ -329,31 +503,16 @@ static PyObject* cluster(
     .verbose = verbose,
   };
 
-  graph = PyIGraph_ToCGraph(py_graph_obj);
+  PYIGRAPH_CHECK(
+    py_graph_to_neighlist(py_graph_obj, py_weights_obj, &neigh_list));
+  IGRAPH_FINALLY(se2_neighs_destroy, &neigh_list);
 
-  if (target_clusters > igraph_vcount(graph)) {
+  if (target_clusters > neigh_list.n_nodes) {
+    IGRAPH_FINALLY_FREE();
     PyErr_SetString(PyExc_ValueError,
       "Number of target clusters cannot exceed the number of "
       "nodes in the graph.");
   }
-
-  if (py_weights_obj && PySequence_Check(py_weights_obj)) {
-    PYIGRAPH_CHECK(py_sequence_to_igraph_vector_i(py_weights_obj, &weights));
-    IGRAPH_FINALLY(igraph_vector_destroy, &weights);
-    if (igraph_vector_size(&weights) != igraph_ecount(graph)) {
-      IGRAPH_FINALLY_FREE();
-      PyErr_SetString(PyExc_ValueError,
-        "Number of weights does not match number of edges in graph.");
-      return NULL;
-    }
-
-    PYIGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, &weights, &neigh_list));
-    igraph_vector_destroy(&weights);
-    IGRAPH_FINALLY_CLEAN(1);
-  } else {
-    PYIGRAPH_CHECK(se2_igraph_to_neighbor_list(graph, NULL, &neigh_list));
-  }
-  IGRAPH_FINALLY(se2_neighs_destroy, &neigh_list);
 
   PYIGRAPH_CHECK(speak_easy_2(&neigh_list, &opts, &memb));
   se2_neighs_destroy(&neigh_list);
