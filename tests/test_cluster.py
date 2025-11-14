@@ -29,7 +29,7 @@ class graph:
         g = ig.Graph.Preference(
             n_nodes, type_dist.tolist(), pref, attribute="type"
         )
-        ground_truth = ig.VertexClustering(g, g.vs["type"])
+        ground_truth = g.vs["type"]
 
         return (g, ground_truth)
 
@@ -45,7 +45,7 @@ class graph:
         arr = np.zeros((n_nodes, n_nodes))
         arr[i, j] = weights
 
-        return arr
+        return arr + arr.T
 
     def to_igraph(self, isweighted: bool) -> ig.Graph:
         g = self._graph.copy()

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tests.
 - Pre-compile binaries for more environments.
+- Directly support numpy arrays as graphs (without having to go through igraph datatype as intermediary).
 
 ### Changed
 
@@ -18,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compile using stable API.
 - Update python-igraph -> 1.0.0
 - Update libSE2 for MSVC support.
+- [BREAKING] Return membership as a list or list of lists instead of igraph's VertexClustering class.
+
+### Fix
+
+- Catch more potential memory leaks and incorrect reference management.
 
 ## [0.1.7] 2025-09-04
 
