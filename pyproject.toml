@@ -1,6 +1,6 @@
 [project]
 name = "speakeasy2"
-version = "0.2.0a1"
+version = "0.2.0a2"
 description = "SpeakEasy2 community detection algorithm"
 authors = [{name = "David R Connell", email = "david32@dcon.addy.io"}]
 license = "GPL-3.0-or-later"
