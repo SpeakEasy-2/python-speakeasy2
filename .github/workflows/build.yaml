@@ -64,9 +64,9 @@ jobs:
           CIBW_BUILD: ${{ runner.os == 'Windows' && format('*-{0}', matrix.arch) || '' }}
           CIBW_BEFORE_BUILD_LINUX: >-
             (if command -v yum; then
-               yum install -y flex bison libxml2-devel zlib-devel;
+               yum install -y libxml2-devel zlib-devel;
              elif command -v apk; then
-               apk add flex bison libxml2-dev zlib-dev;
+               apk add libxml2-dev zlib-dev;
              fi) && pip install -U cmake
           CIBW_ENVIRONMENT_MACOS: 'LDFLAGS="-L$(brew --prefix libxml2)/lib" CPPFLAGS="-I$(brew --prefix libxml2)/include"'
           CIBW_ENVIRONMENT_WINDOWS: >-
