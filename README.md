@@ -123,7 +123,9 @@ pip install --user speakeasy2
 
 ## Building from source
 
-Compilation depends on a C compiler, CMake, and (optionally) ninja.
+Compilation depends on a C compiler, CMake, libxml2, zlib, and (optionally) ninja.
+On Windows, using `MSVC`, the `pthreads4W` library will also be needed for multithreading support.
+See the [build.yaml](file://.github/workflows/build.yaml) GitHub action workflow for how to install dependencies on different environments.
 
 Since the `igraph` package is supplied by the vendored SE2 C library, after cloning the source directory, submodules most be recursively initialized.
 
@@ -133,23 +135,24 @@ cd python-speakeasy2
 git submodule update --init --recursive
 ```
 
-The CMake calls are wrapped into the python build logic in the `build_script.py` (this is a `poetry` specific method for building C extensions).
-This allows the package to be built using various python build backends.
-Since this package uses poetry, the suggested way to build the package is invoking `poetry build` and `poetry install`, which will install in development mode.
+Speakeasy2 uses the  [scikit-build-core](https://scikit-build-core.readthedocs.io/en/latest/index.html) as the build backend to handle compilation of the C extension using `CMake`.
+With this we can build the project with either `uv` using `uv build` or with the `build` module (`pip install --install build && python -m build`).
+For convenience, a `Makefile` is provided that defines various targets for developing and packaging the project.
+This `Makefile` assumes use with the `uv` package manager for handling dependencies.
 
-For convenience, the provided `Makefile` defines the `install` target to do this and `clean-dist` to clear all generated files (as well as other targets, see the file for more).
+For development, use `uv` to create a private environment with the `dev` and `test` dependency groups, then run the `make devenv` target to compile the C extension.
+After running the `devenv` target, there should be a new `build/cp310-abi3-*` directory, where the wildcard will be dependent on your environment.
+You can link the extension to the `speakeasy2` project with something similar to:
 
-It should now be possible to run scripts through `poetry`:
-
-```bash
-poetry run ipython path/to/script.py
+``` bash
+ln -s ../build/cp310-abi3-linux_x86_64/_speakeasy2.abi3.so speakeasy2
 ```
 
-Or enter a python repository with the private environment activate in the same way.
+Additionally, you may want to link the generated `compile_commands.json` to the project root to provide a language server with library information:
 
-```bash
-poetry run ipython
+``` bash
+ln -s build/cp310-abi3-linux_x86_64/compile_commands.json .
 ```
 
-If you don't want to use `poetry`, it's possible to build with other method in their standard way.
-For example `python -m build` or `pip install --editable .` should both work.
+It should not be possible to successfully run the command: `pytest tests`.
+If working on the C extension, the `make check` command will make sure the extension is compiled before running the `pytest` command.
